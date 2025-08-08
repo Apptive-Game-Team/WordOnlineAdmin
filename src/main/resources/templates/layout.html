@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" >
+
+    <head th:fragment="header(title)">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title th:text="${title} ?: 'Word Online Admin'">Word Online Admin</title>
+        <!-- Bootstrap CSS -->
+        <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet">
+    </head>
+
+    <body>
+
+        <div th:replace="~{fragments/nav :: nav}"></div>
+
+        <!-- Content Section -->
+        <main class="container mt-4" layout:fragment="content">
+            <p>Page content goes here</p>
+        </main>
+
+        <footer th:fragment="footer">
+            <!-- Bootstrap JS -->
+            <script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+        </footer>
+
+    </body>
+</html>
