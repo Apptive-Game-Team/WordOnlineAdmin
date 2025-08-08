@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Parameter Value Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1 th:text="|Parameter Values for ${gameObject.name}|"></h1>
+
+        <!-- ParameterValue Management -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 th:text="|Parameter Values for ${gameObject.name}|"></h3>
+            </div>
+            <div class="card-body">
+                <form id="addParameterValueForm" class="form-inline">
+                    <div class="form-group mb-2">
+                        <label for="parameterId" class="sr-only">Parameter</label>
+                        <select class="form-control" id="parameterId" name="parameterId">
+                            <option th:each="parameter : ${parameters}" th:value="${parameter.id}" th:text="${parameter.name}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group mx-sm-3 mb-2">
+                        <label for="parameterValue" class="sr-only">Value</label>
+                        <input type="number" step="0.01" class="form-control" id="parameterValue" name="value" placeholder="Value">
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2">Add Parameter Value</button>
+                </form>
+
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="paramValue : ${gameObject.parameterValues}">
+                        <td th:text="${paramValue.id}"></td>
+                        <td th:text="${paramValue.parameter.name}"></td>
+                        <td th:text="${paramValue.value}"></td>
+                        <td>
+                            <form class="d-inline update-form">
+                                <input type="hidden" name="id" th:value="${paramValue.id}">
+                                <input type="number" step="0.01" name="value" th:value="${paramValue.value}" class="form-control d-inline w-auto">
+                                <button type="submit" class="btn btn-sm btn-info">Update</button>
+                            </form>
+                            <form class="d-inline delete-form">
+                                <input type="hidden" name="id" th:value="${paramValue.id}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const gameObjectId = /*[[${gameObject.id}]]*/ 0;
+
+        document.getElementById('addParameterValueForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = {
+                parameterId: formData.get('parameterId'),
+                value: formData.get('value')
+            };
+
+            fetch(`/api/admin/game-objects/${gameObjectId}/parameter-values`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        });
+
+        document.querySelectorAll('.update-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+                const data = {
+                    value: formData.get('value')
+                };
+
+                fetch(`/api/admin/parameter-values/${id}`,
+                    {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+
+                fetch(`/api/admin/parameter-values/${id}`,
+                    {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+        /*]]>*/
+    </script>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Parameter Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Game Object and Parameter Management</h1>
+
+        <!-- GameObject Management -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Game Objects</h2>
+            </div>
+            <div class="card-body">
+                <form id="createGameObjectForm" class="form-inline">
+                    <div class="form-group mb-2">
+                        <label for="gameObjectName" class="sr-only">Name</label>
+                        <input type="text" class="form-control" id="gameObjectName" name="name" placeholder="New Game Object Name">
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 ml-2">Create GameObject</button>
+                </form>
+
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="gameObject : ${gameObjects}">
+                        <td th:text="${gameObject.id}"></td>
+                        <td th:text="${gameObject.name}"></td>
+                        <td>
+                            <form class="d-inline update-form">
+                                <input type="hidden" name="id" th:value="${gameObject.id}">
+                                <input type="text" name="name" th:value="${gameObject.name}" class="form-control d-inline w-auto">
+                                <button type="submit" class="btn btn-sm btn-info">Update</button>
+                            </form>
+                            <form class="d-inline delete-form">
+                                <input type="hidden" name="id" th:value="${gameObject.id}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                            <a th:href="@{/admin/game-object/{gameObjectId}(gameObjectId=${gameObject.id})}" class="btn btn-sm btn-primary">Manage Parameters</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('createGameObjectForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = {
+                name: formData.get('name')
+            };
+
+            fetch('/api/admin/game-objects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        });
+
+        document.querySelectorAll('.update-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+                const data = {
+                    name: formData.get('name')
+                };
+
+                fetch(`/api/admin/game-objects/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+
+                fetch(`/api/admin/game-objects/${id}`, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+    </script>
+</div>
+
+</body>
+</html>
