@@ -1,5 +1,7 @@
 package com.wordonline.admin.controller;
 
+import com.wordonline.admin.dto.GameObjectDto;
+import com.wordonline.admin.dto.ParameterValueDto;
 import com.wordonline.admin.service.ParameterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -7,30 +9,30 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/game-objects")
+@RequestMapping("/api/admin")
 @RequiredArgsConstructor
 public class GameObjectController {
 
     private final ParameterService parameterService;
 
-    @PostMapping
+    @PostMapping("/game-objects")
     public ResponseEntity<String> saveGameObject(
-            @RequestBody String name
+            @RequestBody GameObjectDto dto
     ) {
-        parameterService.createGameObject(name);
+        parameterService.createGameObject(dto.name());
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
-    @PatchMapping("/{gameObjectId}")
+    @PatchMapping("/game-objects/{gameObjectId}")
     public ResponseEntity<String> updateGameObject(
             @PathVariable Long gameObjectId,
-            @RequestBody String name
+            @RequestBody GameObjectDto dto
     ) {
-        parameterService.updateGameObject(gameObjectId, name);
+        parameterService.updateGameObject(gameObjectId, dto.name());
         return ResponseEntity.ok("Successfully Updated");
     }
 
-    @DeleteMapping("/{gameObjectId}")
+    @DeleteMapping("/game-objects/{gameObjectId}")
     public ResponseEntity<String> deleteGameObject(
             @PathVariable Long gameObjectId
     ) {
@@ -38,32 +40,29 @@ public class GameObjectController {
         return ResponseEntity.ok("Successfully Deleted");
     }
 
-    @PostMapping("/{gameObjectId}/parameter-values/{parameterId}")
+    @PostMapping("/game-objects/{gameObjectId}/parameter-values")
     public ResponseEntity<String> saveParameterValue(
             @PathVariable Long gameObjectId,
-            @PathVariable Long parameterId,
-            @RequestBody Double value
+            @RequestBody ParameterValueDto dto
     ) {
-        parameterService.createParameterValue(gameObjectId, parameterId, value);
+        parameterService.createParameterValue(gameObjectId, dto.parameterId(), dto.value());
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
-    @PatchMapping("/{gameObjectId}/parameter-values/{parameterId}")
+    @PatchMapping("/parameter-values/{parameterValueId}")
     public ResponseEntity<String> updateParameterValue(
-            @PathVariable Long gameObjectId,
-            @PathVariable Long parameterId,
-            @RequestBody Double value
+            @PathVariable Long parameterValueId,
+            @RequestBody ParameterValueDto dto
     ) {
-        parameterService.updateParameterValue(gameObjectId, parameterId, value);
+        parameterService.updateParameterValue(parameterValueId, dto.value());
         return ResponseEntity.ok("Successfully Updated");
     }
 
-    @DeleteMapping("/{gameObjectId}/parameter-values/{parameterId}")
+    @DeleteMapping("/parameter-values/{parameterValueId}")
     public ResponseEntity<String> deleteParameterValue(
-            @PathVariable Long gameObjectId,
-            @PathVariable Long parameterId
+            @PathVariable Long parameterValueId
     ) {
-        parameterService.deleteParameterValue(gameObjectId, parameterId);
+        parameterService.deleteParameterValue(parameterValueId);
         return ResponseEntity.ok("Successfully Deleted");
     }
 }

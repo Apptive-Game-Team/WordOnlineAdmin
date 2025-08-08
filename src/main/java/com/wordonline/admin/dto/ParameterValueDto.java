@@ -2,7 +2,7 @@ package com.wordonline.admin.dto;
 
 public record ParameterValueDto(
         Long id,
-        String name,
+        Long parameterId,
         Double value
 ) {
 

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Parameter Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Parameter Management</h1>
+        <!-- Parameter Management -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Parameters</h2>
+            </div>
+            <div class="card-body">
+                <form id="createParameterForm" class="form-inline">
+                    <div class="form-group mb-2">
+                        <label for="parameterName" class="sr-only">Name</label>
+                        <input type="text" class="form-control" id="parameterName" name="name" placeholder="New Parameter Name">
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 ml-2">Create Parameter</button>
+                </form>
+
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="parameter : ${parameters}">
+                        <td th:text="${parameter.id}"></td>
+                        <td th:text="${parameter.name}"></td>
+                        <td>
+                            <form class="d-inline update-form">
+                                <input type="hidden" name="id" th:value="${parameter.id}">
+                                <input type="text" name="name" th:value="${parameter.name}" class="form-control d-inline w-auto">
+                                <button type="submit" class="btn btn-sm btn-info">Update</button>
+                            </form>
+                            <form class="d-inline delete-form">
+                                <input type="hidden" name="id" th:value="${parameter.id}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('createParameterForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = {
+                name: formData.get('name')
+            };
+
+            fetch('/api/admin/parameters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        });
+
+        document.querySelectorAll('.update-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+                const data = {
+                    name: formData.get('name')
+                };
+
+                fetch(`/api/admin/parameters/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+
+                fetch(`/api/admin/parameters/${id}`, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+    </script>
+</div>
+
+</body>
+</html>

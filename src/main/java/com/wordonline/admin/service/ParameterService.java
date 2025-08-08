@@ -1,5 +1,6 @@
 package com.wordonline.admin.service;
 
+import com.wordonline.admin.dto.*;
 import com.wordonline.admin.entity.GameObject;
 import com.wordonline.admin.entity.Parameter;
 import com.wordonline.admin.entity.ParameterValue;
@@ -9,6 +10,8 @@ import com.wordonline.admin.repository.ParameterValueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -58,22 +61,54 @@ public class ParameterService {
         parameterValueRepository.save(parameterValue);
     }
 
-    public void updateParameterValue(Long gameObjectId, Long parameterId, Double value) {
-        ParameterValue parameterValue = parameterValueRepository.findByGameObjectIdAndParameterId(gameObjectId, parameterId)
+    public void updateParameterValue(Long parameterValueId, Double value) {
+        ParameterValue parameterValue = parameterValueRepository.findById(parameterValueId)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter Value"));
 
         parameterValue.setValue(value);
     }
 
-    public void deleteParameterValue(Long gameObjectId, Long parameterId) {
-        ParameterValue parameterValue = parameterValueRepository.findByGameObjectIdAndParameterId(gameObjectId, parameterId)
-                .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter Value"));
-
-        parameterValueRepository.delete(parameterValue);
+    public void deleteParameterValue(Long parameterValueId) {
+        parameterValueRepository.deleteById(parameterValueId);
     }
 
-    public void getGameObjects() {
+    public GameObjectsDto getGameObjects() {
+        return new GameObjectsDto(
 
+        gameObjectRepository.findAll()
+                .stream().map(
+                        gameObject -> {
+                            List<ParameterValueDto> parameterValueDtos = gameObject.getParameterValues()
+                                    .stream().map(
+                                            parameterValue ->
+                                                    new ParameterValueDto(
+                                                            parameterValue.getId(),
+                                                            parameterValue.getParameter().getId(),
+                                                            parameterValue.getValue()
+                                                    )
+                                    ).toList();
+
+                            return new GameObjectDto(
+                                    gameObject.getId(),
+                                    gameObject.getName(),
+                                    parameterValueDtos
+                            );
+                        }
+
+                ).toList()
+        );
+    }
+
+    public ParametersDto getParameters() {
+        return new ParametersDto(
+                parameterRepository.findAll()
+                        .stream().map(
+                            parameter ->
+                                    new ParameterDto(
+                                            parameter.getId(),
+                                            parameter.getName()
+                                    )
+                        ).toList()
+        );
     }
 }
-

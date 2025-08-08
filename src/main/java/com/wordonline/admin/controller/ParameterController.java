@@ -1,5 +1,6 @@
 package com.wordonline.admin.controller;
 
+import com.wordonline.admin.dto.ParameterDto;
 import com.wordonline.admin.service.ParameterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,18 +16,18 @@ public class ParameterController {
 
     @PostMapping
     public ResponseEntity<String> saveParameter(
-            @RequestBody String name
+            @RequestBody ParameterDto dto
     ) {
-        parameterService.createParameter(name);
+        parameterService.createParameter(dto.name());
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
     @PatchMapping("/{parameterId}")
     public ResponseEntity<String> updateParameter(
             @PathVariable Long parameterId,
-            @RequestBody String name
+            @RequestBody ParameterDto dto
     ) {
-        parameterService.updateParameter(parameterId, name);
+        parameterService.updateParameter(parameterId, dto.name());
         return ResponseEntity.ok("Successfully Updated");
     }
 
