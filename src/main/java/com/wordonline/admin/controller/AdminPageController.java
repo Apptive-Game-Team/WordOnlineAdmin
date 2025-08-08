@@ -1,5 +1,6 @@
 package com.wordonline.admin.controller;
 
+import com.wordonline.admin.client.GameServerClient;
 import com.wordonline.admin.entity.GameObject;
 import com.wordonline.admin.repository.GameObjectRepository;
 import com.wordonline.admin.repository.ParameterRepository;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 
 @Controller
 @RequiredArgsConstructor
@@ -15,6 +17,7 @@ public class AdminPageController {
 
     private final GameObjectRepository gameObjectRepository;
     private final ParameterRepository parameterRepository;
+    private final GameServerClient gameServerClient;
 
     @GetMapping("/")
     public String index() {
@@ -39,5 +42,11 @@ public class AdminPageController {
     public String adminParameter(Model model) {
         model.addAttribute("parameters", parameterRepository.findAll());
         return "admin-parameter";
+    }
+
+    @GetMapping("/admin/invalidate-cache")
+    public String invalidateCache() {
+        gameServerClient.invalidateCache();
+        return "redirect:/";
     }
 }
