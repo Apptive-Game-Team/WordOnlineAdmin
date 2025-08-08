@@ -28,6 +28,9 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(authorizeRequests -> {
                             authorizeRequests
                                     .requestMatchers(
+                                            "/login",
+                                            "/css/**",
+                                            "/js/**",
                                             "/healthcheck")
                                     .permitAll()
                                     .anyRequest().authenticated();
