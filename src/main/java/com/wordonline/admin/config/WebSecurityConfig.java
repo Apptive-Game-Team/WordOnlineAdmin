@@ -10,6 +10,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @RequiredArgsConstructor
 @EnableWebSecurity
 @Configuration
@@ -26,15 +28,13 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(authorizeRequests -> {
                             authorizeRequests
                                     .requestMatchers(
-                                            "/login",
-                                            "/css/**",
-                                            "/js/**",
                                             "/healthcheck")
                                     .permitAll()
                                     .anyRequest().authenticated();
                         }
 
                 )
+                .formLogin(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable);
 
         return http.build();
