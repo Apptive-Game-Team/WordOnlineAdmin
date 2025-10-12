@@ -1,0 +1,28 @@
+server:
+  port: 8000
+
+word-online:
+  game-server-url: ${GAME_SERVER_URL}
+
+spring:
+  application:
+    name: word-online-admin
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PW}
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+  security:
+    user:
+      name: ${APPLICATION_USER}
+      password: ${APPLICATION_PW}
