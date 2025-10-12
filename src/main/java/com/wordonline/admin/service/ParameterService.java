@@ -1,12 +1,12 @@
 package com.wordonline.admin.service;
 
 import com.wordonline.admin.dto.*;
-import com.wordonline.admin.entity.GameObject;
-import com.wordonline.admin.entity.Parameter;
-import com.wordonline.admin.entity.ParameterValue;
-import com.wordonline.admin.repository.GameObjectRepository;
-import com.wordonline.admin.repository.ParameterRepository;
-import com.wordonline.admin.repository.ParameterValueRepository;
+import com.wordonline.admin.entity.parameter.GameObject;
+import com.wordonline.admin.entity.parameter.Parameter;
+import com.wordonline.admin.entity.parameter.ParameterValue;
+import com.wordonline.admin.repository.parameter.GameObjectRepository;
+import com.wordonline.admin.repository.parameter.ParameterRepository;
+import com.wordonline.admin.repository.parameter.ParameterValueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,15 +1,14 @@
 package com.wordonline.admin.controller;
 
 import com.wordonline.admin.client.GameServerClient;
-import com.wordonline.admin.entity.GameObject;
-import com.wordonline.admin.repository.GameObjectRepository;
-import com.wordonline.admin.repository.ParameterRepository;
+import com.wordonline.admin.entity.parameter.GameObject;
+import com.wordonline.admin.repository.parameter.GameObjectRepository;
+import com.wordonline.admin.repository.parameter.ParameterRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 
 @Controller
 @RequiredArgsConstructor
