@@ -6,7 +6,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+
 @Entity
+@Getter
 @Table(name = "statistic_game_magics")
 public class StatisticGameMagic {
 

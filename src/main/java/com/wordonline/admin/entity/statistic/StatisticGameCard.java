@@ -6,8 +6,11 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+
 @Entity
 @Table(name = "statistic_game_cards")
+@Getter
 public class StatisticGameCard {
 
     @Id

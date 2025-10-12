@@ -2,14 +2,18 @@ package com.wordonline.admin.entity.statistic;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+
 @Table(name = "statistic_games")
 @Entity
+@Getter
 public class StatisticGame {
 
     @Id
@@ -20,8 +24,8 @@ public class StatisticGame {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "statisticGame")
-    private List<StatisticGameMagic> statisticGameMagics;
+    private Set<StatisticGameMagic> statisticGameMagics;
 
     @OneToMany(mappedBy = "statisticGame")
-    private List<StatisticGameCard> statisticGameCards;
+    private Set<StatisticGameCard> statisticGameCards;
 }
