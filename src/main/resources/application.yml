@@ -1,5 +1,5 @@
 server:
-  port: 6666
+  port: ${PORT:8080}
 
 word-online:
   game-server-url: ${GAME_SERVER_URL}

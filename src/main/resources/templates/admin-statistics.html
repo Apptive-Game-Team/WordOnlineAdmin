@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Statistics</h1>
+
+        <!-- Card Statistics -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Card Statistics</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <canvas id="cardTotalPlaysChart"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="cardWinsChart"></canvas>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <canvas id="cardWinRateChart"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="cardUsageRatioChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Magic Statistics -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Magic Statistics</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <canvas id="magicTotalPlaysChart"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="magicWinsChart"></canvas>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <canvas id="magicWinRateChart"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="magicUsageRatioChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const cardWinCounts = /*[[${cardWinCounts}]]*/ {};
+        const magicWinCounts = /*[[${magicWinCounts}]]*/ {};
+        const cardGameCounts = /*[[${cardGameCounts}]]*/ {};
+        const magicGameCounts = /*[[${magicGameCounts}]]*/ {};
+        const cardUseCounts = /*[[${cardUseCounts}]]*/ {};
+        const magicUseCounts = /*[[${magicUseCounts}]]*/ {};
+
+        // Helper function to create chart data
+        function createChartData(data) {
+            const labels = Object.keys(data);
+            const values = Object.values(data);
+            return { labels, values };
+        }
+
+        // Card Charts
+        const cardTotalPlaysData = createChartData(cardGameCounts);
+        new Chart(document.getElementById('cardTotalPlaysChart'), {
+            type: 'bar',
+            data: {
+                labels: cardTotalPlaysData.labels,
+                datasets: [{
+                    label: 'Total Plays',
+                    data: cardTotalPlaysData.values,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        const cardWinsData = createChartData(cardWinCounts);
+        new Chart(document.getElementById('cardWinsChart'), {
+            type: 'bar',
+            data: {
+                labels: cardWinsData.labels,
+                datasets: [{
+                    label: 'Wins',
+                    data: cardWinsData.values,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        const cardWinRateLabels = cardTotalPlaysData.labels;
+        const cardWinRateData = cardWinRateLabels.map(label => {
+            const totalPlays = cardGameCounts[label] || 0;
+            const wins = cardWinCounts[label] || 0;
+            return totalPlays > 0 ? (wins / totalPlays) * 100 : 0;
+        });
+
+        new Chart(document.getElementById('cardWinRateChart'), {
+            type: 'bar',
+            data: {
+                labels: cardWinRateLabels,
+                datasets: [{
+                    label: 'Win Rate',
+                    data: cardWinRateData,
+                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }, {
+                    type: 'line',
+                    label: 'Win Rate (Line)',
+                    data: cardWinRateData,
+                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        const cardUsageData = createChartData(cardUseCounts);
+        new Chart(document.getElementById('cardUsageRatioChart'), {
+            type: 'pie',
+            data: {
+                labels: cardUsageData.labels,
+                datasets: [{
+                    label: 'Usage Ratio',
+                    data: cardUsageData.values,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        // Magic Charts
+        const magicTotalPlaysData = createChartData(magicGameCounts);
+        new Chart(document.getElementById('magicTotalPlaysChart'), {
+            type: 'bar',
+            data: {
+                labels: magicTotalPlaysData.labels,
+                datasets: [{
+                    label: 'Total Plays',
+                    data: magicTotalPlaysData.values,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        const magicWinsData = createChartData(magicWinCounts);
+        new Chart(document.getElementById('magicWinsChart'), {
+            type: 'bar',
+            data: {
+                labels: magicWinsData.labels,
+                datasets: [{
+                    label: 'Wins',
+                    data: magicWinsData.values,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        const magicWinRateLabels = magicTotalPlaysData.labels;
+        const magicWinRateData = magicWinRateLabels.map(label => {
+            const totalPlays = magicGameCounts[label] || 0;
+            const wins = magicWinCounts[label] || 0;
+            return totalPlays > 0 ? (wins / totalPlays) * 100 : 0;
+        });
+
+        new Chart(document.getElementById('magicWinRateChart'), {
+            type: 'bar',
+            data: {
+                labels: magicWinRateLabels,
+                datasets: [{
+                    label: 'Win Rate',
+                    data: magicWinRateData,
+                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }, {
+                    type: 'line',
+                    label: 'Win Rate (Line)',
+                    data: magicWinRateData,
+                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        const magicUsageData = createChartData(magicUseCounts);
+        new Chart(document.getElementById('magicUsageRatioChart'), {
+            type: 'pie',
+            data: {
+                labels: magicUsageData.labels,
+                datasets: [{
+                    label: 'Usage Ratio',
+                    data: magicUsageData.values,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            }
+        });
+        /*]]>*/
+    </script>
+</div>
+
+</body>
+</html>

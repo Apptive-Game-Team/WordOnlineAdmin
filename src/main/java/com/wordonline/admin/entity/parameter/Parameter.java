@@ -1,4 +1,4 @@
-package com.wordonline.admin.entity;
+package com.wordonline.admin.entity.parameter;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
