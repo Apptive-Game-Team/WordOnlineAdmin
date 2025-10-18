@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Magic Management</title>
+    <style>
+        .card-header h4 {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Magic Management</h1>
+        </div>
+
+        <!-- Create New Magic -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Create New Magic</h4>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/admin/magic/create}" method="post" class="form-inline">
+                    <div class="form-group mb-2 flex-grow-1">
+                        <label for="magicName" class="sr-only">Name</label>
+                        <input type="text" class="form-control w-100" id="magicName" name="name" placeholder="Enter new magic name">
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 ml-2">Create Magic</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Bulk Actions</h4>
+            </div>
+            <div class="card-body">
+                <div class="form-row align-items-center">
+                    <div class="col-auto">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectAllCheckbox">
+                            <label class="form-check-label" for="selectAllCheckbox">
+                                Select All
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" id="bulkDeleteBtn" class="btn btn-danger">Delete Selected</button>
+                    </div>
+                    <div class="col-auto">
+                        <select id="bulkCardId" name="bulkCardId" class="form-control">
+                            <option value="" disabled selected>Select a card</option>
+                            <option th:each="card : ${cards}" th:value="${card.id}" th:text="${card.name}"></option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" id="bulkAddCardBtn" class="btn btn-success">Add Card to Selected</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Magic List -->
+        <div th:each="magic : ${magics}" class="card mb-3" th:id="'magic-card-' + ${magic.id}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input magic-checkbox" type="checkbox" name="selectedMagicIds" th:value="${magic.id}" th:id="'magicCheckbox-' + ${magic.id}">
+                    <label class="form-check-label" th:for="'magicCheckbox-' + ${magic.id}">
+                        <h4 class="mb-0">
+                            <span th:text="'#' + ${magic.id} + ' - '"></span>
+                            <span th:text="${magic.name}"></span>
+                        </h4>
+                    </label>
+                </div>
+                <div class="btn-toolbar">
+                    <form th:action="@{/admin/magic/update}" method="post" class="form-inline d-inline-block mr-2">
+                        <input type="hidden" name="id" th:value="${magic.id}">
+                        <div class="input-group">
+                            <input type="text" name="name" th:value="${magic.name}" class="form-control">
+                            <div class="input-group-append">
+                                <button type="submit" class="btn btn-info">Update Name</button>
+                            </div>
+                        </div>
+                    </form>
+                    <form th:action="@{/admin/magic/delete}" method="post" class="d-inline-block">
+                        <input type="hidden" name="id" th:value="${magic.id}">
+                        <button type="submit" class="btn btn-danger">Delete Magic</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Associated Cards -->
+                    <div class="col-md-6">
+                        <h5>Associated Cards</h5>
+                        <ul th:if="${!#lists.isEmpty(magic.cardDtos)}" class="list-group">
+                            <li th:each="card : ${magic.cardDtos}" class="list-group-item d-flex justify-content-between align-items-center">
+                                <span th:text="${card.name}"></span>
+                                <form th:action="@{/admin/magic/remove-card}" method="post" class="d-inline">
+                                    <input type="hidden" name="magicId" th:value="${magic.id}">
+                                    <input type="hidden" name="cardId" th:value="${card.id}">
+                                    <button type="submit" class="btn btn-sm btn-warning">Remove</button>
+                                </form>
+                            </li>
+                        </ul>
+                        <div th:if="${#lists.isEmpty(magic.cardDtos)}" class="text-muted">
+                            No cards associated.
+                        </div>
+                    </div>
+
+                    <!-- Add Card -->
+                    <div class="col-md-6">
+                        <h5>Add Card</h5>
+                        <form th:action="@{/admin/magic/add-card}" method="post">
+                            <input type="hidden" name="magicId" th:value="${magic.id}">
+                            <div class="form-group">
+                                <select name="cardId" class="form-control">
+                                    <option value="" disabled selected>Select a card to add</option>
+                                    <option th:each="card : ${cards}" th:value="${card.id}" th:text="${card.name}"></option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-success">Add Card</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Scroll Position Restoration ---
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('scrollPosition', window.scrollY);
+        });
+
+        window.addEventListener('load', () => {
+            const scrollPosition = localStorage.getItem('scrollPosition');
+            if (scrollPosition) {
+                window.scrollTo(0, parseInt(scrollPosition, 10));
+                localStorage.removeItem('scrollPosition');
+            }
+        });
+
+        // --- Bulk Actions --- 
+        function getSelectedMagicIds() {
+            const selectedIds = [];
+            document.querySelectorAll('.magic-checkbox:checked').forEach(checkbox => {
+                selectedIds.push(checkbox.value);
+            });
+            return selectedIds;
+        }
+
+        function createAndSubmitDynamicForm(action, data) {
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = action;
+
+            for (const key in data) {
+                if (data.hasOwnProperty(key)) {
+                    const value = data[key];
+                    if (Array.isArray(value)) {
+                        value.forEach(item => {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = key;
+                            input.value = item;
+                            form.appendChild(input);
+                        });
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = value;
+                        form.appendChild(input);
+                    }
+                }
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        document.getElementById('selectAllCheckbox').addEventListener('change', function(event) {
+            const isChecked = event.target.checked;
+            document.querySelectorAll('.magic-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+
+        document.getElementById('bulkDeleteBtn').addEventListener('click', () => {
+            const selectedIds = getSelectedMagicIds();
+            if (selectedIds.length === 0) {
+                alert('Please select at least one magic item to delete.');
+                return;
+            }
+            if (confirm(`Are you sure you want to delete ${selectedIds.length} magic item(s)?`)) {
+                 createAndSubmitDynamicForm('/admin/magic/bulk-delete', { selectedMagicIds: selectedIds });
+            }
+        });
+
+        document.getElementById('bulkAddCardBtn').addEventListener('click', () => {
+            const selectedIds = getSelectedMagicIds();
+            const cardId = document.getElementById('bulkCardId').value;
+
+            if (selectedIds.length === 0) {
+                alert('Please select at least one magic item.');
+                return;
+            }
+            if (!cardId) {
+                alert('Please select a card to add.');
+                return;
+            }
+
+            createAndSubmitDynamicForm('/admin/magic/bulk-add-card', { selectedMagicIds: selectedIds, bulkCardId: cardId });
+        });
+
+    </script>
+</div>
+
+</body>
+</html>

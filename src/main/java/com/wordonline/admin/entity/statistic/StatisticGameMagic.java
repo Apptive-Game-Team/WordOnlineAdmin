@@ -6,6 +6,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import com.wordonline.admin.entity.magic.Magic;
+
 import lombok.Getter;
 
 @Entity

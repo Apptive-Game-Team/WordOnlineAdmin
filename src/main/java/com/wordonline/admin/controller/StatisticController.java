@@ -1,7 +1,7 @@
 package com.wordonline.admin.controller;
 
-import com.wordonline.admin.entity.statistic.Card;
-import com.wordonline.admin.entity.statistic.Magic;
+import com.wordonline.admin.entity.magic.Card;
+import com.wordonline.admin.entity.magic.Magic;
 import com.wordonline.admin.service.StatisticService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
