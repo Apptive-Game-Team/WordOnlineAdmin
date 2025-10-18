@@ -2,6 +2,8 @@ package com.wordonline.admin.controller;
 
 import com.wordonline.admin.client.GameServerClient;
 import com.wordonline.admin.entity.parameter.GameObject;
+import com.wordonline.admin.repository.magic.CardRepository;
+import com.wordonline.admin.repository.magic.MagicRepository;
 import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
 import lombok.RequiredArgsConstructor;

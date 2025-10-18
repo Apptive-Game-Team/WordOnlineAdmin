@@ -1,7 +1,6 @@
 package com.wordonline.admin.entity.statistic;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.Entity;

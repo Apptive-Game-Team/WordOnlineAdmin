@@ -7,8 +7,8 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
-import com.wordonline.admin.entity.statistic.Card;
-import com.wordonline.admin.entity.statistic.Magic;
+import com.wordonline.admin.entity.magic.Card;
+import com.wordonline.admin.entity.magic.Magic;
 import com.wordonline.admin.entity.statistic.StatisticGame;
 import com.wordonline.admin.entity.statistic.StatisticGameCard;
 import com.wordonline.admin.entity.statistic.StatisticGameMagic;
