@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Tag Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Tag Management</h1>
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Tags</h2>
+            </div>
+            <div class="card-body">
+                <form id="createTagForm" class="form-inline">
+                    <div class="form-group mb-2">
+                        <label for="tagName" class="sr-only">Name</label>
+                        <input type="text" class="form-control" id="tagName" name="name" placeholder="New Tag Name">
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 ml-2">Create Tag</button>
+                </form>
+
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="tag : ${tags}">
+                        <td th:text="${tag.id}"></td>
+                        <td>
+                            <form class="d-inline update-form">
+                                <input type="hidden" name="id" th:value="${tag.id}">
+                                <input type="text" name="name" th:value="${tag.name}" class="form-control d-inline w-auto">
+                                <button type="submit" class="btn btn-sm btn-info">Update</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form class="d-inline delete-form">
+                                <input type="hidden" name="id" th:value="${tag.id}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('createTagForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const data = {
+                name: formData.get('name')
+            };
+
+            fetch('/api/admin/tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        });
+
+        document.querySelectorAll('.update-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+                const data = {
+                    name: formData.get('name')
+                };
+
+                fetch(`/api/admin/tags/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.delete-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const id = formData.get('id');
+
+                fetch(`/api/admin/tags/${id}`, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+    </script>
+</div>
+
+</body>
+</html>

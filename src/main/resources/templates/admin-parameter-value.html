@@ -63,6 +63,45 @@
                 </table>
             </div>
         </div>
+        <!-- Tag Management -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3 th:text="|Tags for ${gameObject.name}|"></h3>
+            </div>
+            <div class="card-body">
+                <form id="addTagForm" class="form-inline">
+                    <div class="form-group mb-2">
+                        <label for="tagId" class="sr-only">Tag</label>
+                        <select class="form-control" id="tagId" name="tagId">
+                            <option th:each="tag : ${tags}" th:value="${tag.id}" th:text="${tag.name}"></option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary mb-2 ml-2">Add Tag</button>
+                </form>
+
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tag</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="gameObjectTag : ${gameObject.gameObjectTags}">
+                        <td th:text="${gameObjectTag.tag.id}"></td>
+                        <td th:text="${gameObjectTag.tag.name}"></td>
+                        <td>
+                            <form class="d-inline remove-tag-form">
+                                <input type="hidden" name="tagId" th:value="${gameObjectTag.tag.id}">
+                                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script th:inline="javascript">
@@ -123,6 +162,41 @@
 
                 fetch(`/api/admin/parameter-values/${id}`,
                     {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                });
+            });
+        });
+
+        document.getElementById('addTagForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const tagId = formData.get('tagId');
+
+            fetch(`/api/admin/game-objects/${gameObjectId}/tags`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tagId: tagId })
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                }
+            });
+        });
+
+        document.querySelectorAll('.remove-tag-form').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+                const tagId = formData.get('tagId');
+
+                fetch(`/api/admin/game-objects/${gameObjectId}/tags/${tagId}`, {
                     method: 'DELETE'
                 }).then(response => {
                     if (response.ok) {

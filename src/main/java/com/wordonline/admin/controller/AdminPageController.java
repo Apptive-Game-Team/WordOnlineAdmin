@@ -2,10 +2,9 @@ package com.wordonline.admin.controller;
 
 import com.wordonline.admin.client.GameServerClient;
 import com.wordonline.admin.entity.parameter.GameObject;
-import com.wordonline.admin.repository.magic.CardRepository;
-import com.wordonline.admin.repository.magic.MagicRepository;
 import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
+import com.wordonline.admin.repository.tag.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,6 +18,7 @@ public class AdminPageController {
     private final GameObjectRepository gameObjectRepository;
     private final ParameterRepository parameterRepository;
     private final GameServerClient gameServerClient;
+    private final TagRepository tagRepository;
 
     @GetMapping("/")
     public String index() {
@@ -36,6 +36,7 @@ public class AdminPageController {
         GameObject gameObject = gameObjectRepository.findById(gameObjectId).orElseThrow();
         model.addAttribute("gameObject", gameObject);
         model.addAttribute("parameters", parameterRepository.findAll());
+        model.addAttribute("tags", tagRepository.findAll());
         return "admin-parameter-value";
     }
 
