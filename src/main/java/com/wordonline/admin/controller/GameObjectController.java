@@ -3,6 +3,8 @@ package com.wordonline.admin.controller;
 import com.wordonline.admin.dto.GameObjectDto;
 import com.wordonline.admin.dto.ParameterValueDto;
 import com.wordonline.admin.service.ParameterService;
+import com.wordonline.admin.service.TagService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,9 @@ import org.springframework.web.bind.annotation.*;
 public class GameObjectController {
 
     private final ParameterService parameterService;
+    private final TagService tagService;
+
+    public record TagAssociationRequest(Long tagId) {}
 
     @PostMapping("/game-objects")
     public ResponseEntity<String> saveGameObject(
@@ -40,6 +45,8 @@ public class GameObjectController {
         return ResponseEntity.ok("Successfully Deleted");
     }
 
+
+    // Manage Parameter =============
     @PostMapping("/game-objects/{gameObjectId}/parameter-values")
     public ResponseEntity<String> saveParameterValue(
             @PathVariable Long gameObjectId,
@@ -64,5 +71,24 @@ public class GameObjectController {
     ) {
         parameterService.deleteParameterValue(parameterValueId);
         return ResponseEntity.ok("Successfully Deleted");
+    }
+
+    // Manage Tags ==========
+    @PostMapping("/game-objects/{gameObjectId}/tags")
+    public ResponseEntity<String> addTagToGameObject(
+            @PathVariable Long gameObjectId,
+            @RequestBody TagAssociationRequest request
+    ) {
+        tagService.addTagToGameObject(gameObjectId, request.tagId());
+        return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Added");
+    }
+
+    @DeleteMapping("/game-objects/{gameObjectId}/tags/{tagId}")
+    public ResponseEntity<String> removeTagFromGameObject(
+            @PathVariable Long gameObjectId,
+            @PathVariable Long tagId
+    ) {
+        tagService.removeTagFromGameObject(gameObjectId, tagId);
+        return ResponseEntity.ok("Successfully Removed");
     }
 }

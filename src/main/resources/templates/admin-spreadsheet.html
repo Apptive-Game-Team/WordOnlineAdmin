@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Game Object Spreadsheet</title>
+    <style>
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table-responsive table {
+            table-layout: fixed;
+        }
+        .table-responsive th, .table-responsive td {
+            white-space: nowrap;
+        }
+        .table-responsive th:nth-child(1),
+        .table-responsive td:nth-child(1) {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background-color: white;
+        }
+        /* To make the sticky header look right with the dark theme */
+        .table-responsive thead th:nth-child(1) {
+            z-index: 3;
+        }
+
+        .table-responsive th:nth-child(1) { width: 200px; } /* name */
+        .table-responsive th:nth-child(2) { width: 100px; } /* hp_per_mana */
+        .table-responsive th:nth-child(3) { width: 100px; } /* dps */
+        .table-responsive th:nth-child(4) { width: 100px; } /* dps_per_mana */
+        .table-responsive th:nth-child(5) { width: 100px; } /* mana_cost */
+        .table-responsive th:nth-child(6) { width: 100px; } /* hp */
+        .table-responsive th:nth-child(7) { width: 100px; } /* quantity */
+        .table-responsive th:nth-child(8) { width: 100px; } /* attack_range */
+        .table-responsive th:nth-child(9) { width: 100px; } /* damage */
+        .table-responsive th:nth-child(10) { width: 100px; } /* attack_interval */
+        .table-responsive th:nth-child(11) { width: 100px; } /* speed */
+        .table-responsive th:nth-child(12) { width: 100px; } /* mass */
+        .table-responsive th:nth-child(13) { width: 100px; } /* radius */
+        .table-responsive th:nth-child(14) { width: 100px; } /* magic_id */
+    </style>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container-fluid">
+        <h1>Game Object Spreadsheet</h1>
+
+        <form class="form mb-3">
+            <div class="form-group">
+                <label for="tags-input" class="mr-2">Filter by Tags:</label>
+                <input type="text" class="form-control" id="tags-input" name="tags" th:value="${param.tags}" placeholder="e.g., tag1,tag2">
+            </div>
+            <div class="form-group mt-2">
+                <div class="form-check form-check-inline" th:each="tag : ${allTags}">
+                    <input class="form-check-input tag-checkbox" type="checkbox" th:value="${tag.name}" th:id="|tag_${tag.id}|"
+                           th:checked="${param.tags != null && #strings.contains(param.tags, tag.name)}">
+                    <label class="form-check-label" th:for="|tag_${tag.id}|" th:text="${tag.name}"></label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Filter</button>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                <tr>
+                    <th>name</th>
+                    <th>HP/<br>MANA</th>
+                    <th>dps</th>
+                    <th>DPS/<br>MANA</th>
+                    <th>Mana<br>Cost</th>
+                    <th>HP</th>
+                    <th>quantity</th>
+                    <th>Attack<br>Range</th>
+                    <th>damage</th>
+                    <th>Attack<br>Interval</th>
+                    <th>speed</th>
+                    <th>mass</th>
+                    <th>radius</th>
+                    <th>magic_id</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="gameObject : ${gameObjects}" th:attr="data-game-object-id=${gameObject.id}">
+                    <td><a th:href="@{|/admin/game-object/${gameObject.id}|}" th:text="${gameObject.name} ?: 'N/A'"></a></td>
+                    <td th:text="${gameObject.hpPerMana} ? ${#numbers.formatDecimal(gameObject.hpPerMana, 1, 2)} : 'N/A'"></td>
+                    <td th:text="${gameObject.damagePerSecond} ? ${#numbers.formatDecimal(gameObject.damagePerSecond, 1, 2)} : 'N/A'"></td>
+                    <td th:text="${gameObject.damagePerSecondPerMana} ? ${#numbers.formatDecimal(gameObject.damagePerSecondPerMana, 1, 2)} : 'N/A'"></td>
+                    <td th:text="${gameObject.manaCost} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="hp" th:value="${gameObject.hp} ?: 'N/A'" th:attr="data-initial-value=${gameObject.hp} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="quantity" th:value="${gameObject.quantity} ?: 'N/A'" th:attr="data-initial-value=${gameObject.quantity} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="attack_range" th:value="${gameObject.attackRange} ?: 'N/A'" th:attr="data-initial-value=${gameObject.attackRange} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="damage" th:value="${gameObject.damage} ?: 'N/A'" th:attr="data-initial-value=${gameObject.damage} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="attack_interval" th:value="${gameObject.attackInterval} ?: 'N/A'" th:attr="data-initial-value=${gameObject.attackInterval} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="speed" th:value="${gameObject.speed} ?: 'N/A'" th:attr="data-initial-value=${gameObject.speed} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="mass" th:value="${gameObject.mass} ?: 'N/A'" th:attr="data-initial-value=${gameObject.mass} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="radius" th:value="${gameObject.radius} ?: 'N/A'" th:attr="data-initial-value=${gameObject.radius} ?: 'N/A'"></td>
+                    <td><input type="text" class="form-control editable-param" data-param-name="magic_id" th:value="${gameObject.magicId} ?: 'N/A'" th:attr="data-initial-value=${gameObject.magicId} ?: 'N/A'"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <button id="save-changes" class="btn btn-success">Save Changes</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tagsInput = document.getElementById('tags-input');
+            const checkboxes = document.querySelectorAll('.tag-checkbox');
+
+            function updateInputFromCheckboxes() {
+                const checkedTags = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+                tagsInput.value = checkedTags.join(',');
+            }
+
+            function updateCheckboxesFromInput() {
+                const tags = tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                checkboxes.forEach(cb => {
+                    cb.checked = tags.includes(cb.value);
+                });
+            }
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateInputFromCheckboxes);
+            });
+
+            tagsInput.addEventListener('input', updateCheckboxesFromInput);
+
+            const saveButton = document.getElementById('save-changes');
+            saveButton.addEventListener('click', function() {
+                const updates = [];
+                document.querySelectorAll('.editable-param').forEach(input => {
+                    const gameObjectId = input.closest('tr').dataset.gameObjectId;
+                    const parameterName = input.dataset.paramName;
+                    let currentValue = input.value.trim();
+                    const initialValue = input.dataset.initialValue.trim();
+
+                    // Only process if the value has changed
+                    if (currentValue !== initialValue) {
+                        let valueToSend;
+                        // Check if the current value is a valid number
+                        if (currentValue === '' || currentValue === 'N/A' || isNaN(parseFloat(currentValue))) {
+                            valueToSend = null; // Send null if not a valid number
+                        } else {
+                            valueToSend = parseFloat(currentValue); // Parse to float if it's a number
+                        }
+
+                        updates.push({
+                            gameObjectId: gameObjectId,
+                            parameterName: parameterName,
+                            value: valueToSend
+                        });
+                    }
+                });
+
+                if (updates.length === 0) {
+                    alert('No changes to save.');
+                    return;
+                }
+
+                fetch('/api/admin/spread-sheets/game-objects', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updates)
+                }).then(response => {
+                    if (response.ok) {
+                        alert('Changes saved successfully!');
+                        window.location.reload();
+                    } else {
+                        alert('Error saving changes.');
+                    }
+                });
+            });
+        });
+    </script>
