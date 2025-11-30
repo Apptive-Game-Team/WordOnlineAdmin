@@ -99,6 +99,19 @@ public class ParameterService {
         );
     }
 
+    public void updateParameterValue(Long gameObjectId, String parameterName, Double value) {
+        GameObject gameObject = gameObjectRepository.findById(gameObjectId)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found GameObject"));
+        Parameter parameter = parameterRepository.findByName(parameterName)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter name: " + parameterName));
+
+        ParameterValue parameterValue = parameterValueRepository.findByGameObjectAndParameter(gameObject, parameter)
+                .orElse(new ParameterValue(value, gameObject, parameter));
+
+        parameterValue.setValue(value);
+        parameterValueRepository.save(parameterValue);
+    }
+
     public ParametersDto getParameters() {
         return new ParametersDto(
                 parameterRepository.findAll()

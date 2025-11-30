@@ -36,6 +36,12 @@ public class GameObject {
         parameterValues.add(parameterValue);
     }
 
+    public Optional<ParameterValue> getParameterValue(String parameterName) {
+        return parameterValues.stream()
+                .filter(parameterValue -> parameterValue.getParameter().getName().equals(parameterName))
+                .findAny();
+    }
+
     public GameObject(String name) {
         this.name = name;
     }
