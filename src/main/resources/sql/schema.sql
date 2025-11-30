@@ -11,3 +11,5 @@ CREATE TABLE game_object_tags (
 );
 
 ALTER TABLE game_object_tags ADD CONSTRAINT uq_game_object_id_tag_id UNIQUE (game_object_id, tag_id);
+
+ALTER TABLE cards ADD COLUMN game_object_id BIGINT REFERENCES game_objects(id);
