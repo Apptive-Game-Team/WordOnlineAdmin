@@ -8,6 +8,9 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import com.wordonline.admin.entity.tag.GameObjectTag;
 
 @Entity
 @Getter
@@ -25,6 +28,9 @@ public class GameObject {
 
     @OneToMany(mappedBy = "gameObject")
     private List<ParameterValue> parameterValues = new ArrayList<>();
+
+    @OneToMany(mappedBy = "gameObject")
+    private List<GameObjectTag> gameObjectTags = new ArrayList<>();
 
     public void addParameterValue(ParameterValue parameterValue) {
         parameterValues.add(parameterValue);
