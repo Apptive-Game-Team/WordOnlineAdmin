@@ -2,7 +2,8 @@ server:
   port: ${PORT:8080}
 
 word-online:
-  game-server-url: ${GAME_SERVER_URL}
+  jwt:
+    path: ${JWT_FILE_PATH}
 
 spring:
   application:
