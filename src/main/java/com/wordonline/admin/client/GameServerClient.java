@@ -41,7 +41,7 @@ public class GameServerClient {
         boolean hasError = serverUrls.stream()
                  .map(this::mapToResponseEntity)
                  .map(ResponseEntity::getStatusCode)
-                 .toList().stream() // 끝까지 실행 시키기 위함
+                 .toList().stream() // To ensure the stream is fully executed
                  .anyMatch(HttpStatusCode::isError);
 
         if (hasError) {
