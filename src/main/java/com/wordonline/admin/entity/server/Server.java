@@ -1,6 +1,5 @@
 package com.wordonline.admin.entity.server;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -8,36 +7,39 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import lombok.Getter;
+import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter
-@Table(name = "servers")
 @NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "servers")
 public class Server {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 10)
     private String protocol;
-
-    @Column(nullable = false)
     private String domain;
-
-    @Column(nullable = false)
     private Integer port;
 
-    @Column(nullable = false, length = 10)
     @Enumerated(EnumType.STRING)
     private ServerType type;
 
-    @Column(nullable = false, length = 10)
+    @Setter
     @Enumerated(EnumType.STRING)
     private ServerState state;
 
     public String getUrl() {
-        return protocol + "://" + domain + ":" + port;
+        return String.format("%s://%s:%d", protocol, domain, port);
+    }
+
+    public Server(String protocol, String domain, int port, ServerType serverType, ServerState state) {
+        this(null, protocol, domain, port, serverType, state);
     }
 }

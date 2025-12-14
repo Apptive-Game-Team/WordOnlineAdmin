@@ -1,41 +1,60 @@
 package com.wordonline.admin.client;
 
+import java.util.List;
+
+import jakarta.annotation.PostConstruct;
+
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.wordonline.admin.entity.server.Server;
+import com.wordonline.admin.entity.server.ServerState;
+import com.wordonline.admin.entity.server.ServerType;
+import com.wordonline.admin.repository.server.ServerRepository;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GameServerClient {
+
+    private final ServerRepository serverRepository;
     private final RestClient.Builder builder;
     private RestClient restClient;
 
-    @Value("${word-online.game-server-url}")
-    private String gameServerUrl;
-
-    private void init() {
-        restClient = builder.baseUrl(gameServerUrl)
-                .build();
+    @PostConstruct
+    private void initRestClient() {
+        restClient = builder.build();
     }
 
     public void invalidateCache() {
-        if (restClient == null) {
-            init();
-        }
+        List<String> serverUrls = serverRepository
+                .findAllByTypeAndState(ServerType.GAME, ServerState.ACTIVE)
+                .stream()
+                .map(Server::getUrl)
+                .toList();
 
-        ResponseEntity<Void> response = restClient.post()
-                .uri("/api/admin/invalidate")
-                .retrieve()
-                .toEntity(Void.class);
+        boolean hasError = serverUrls.stream()
+                 .map(this::mapToResponseEntity)
+                 .map(ResponseEntity::getStatusCode)
+                 .toList().stream() // To ensure the stream is fully executed
+                 .anyMatch(HttpStatusCode::isError);
 
-        if (response.getStatusCode().isError()) {
+        if (hasError) {
             log.error("Can't Invalidate Cache");
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(GameServerClient.class);
+    private ResponseEntity<Void> mapToResponseEntity(String url) {
+        return restClient.post()
+                .uri(url + "/api/admin/invalidate")
+                .retrieve()
+                .toEntity(Void.class);
+    }
+
+
 }
