@@ -28,7 +28,7 @@ public class RestClientConfig {
         try {
             return Files.readString(Path.of(jwtFilePath)).trim();
         } catch (IOException e) {
-            log.error("Fail to Load jwt {}", jwtFilePath, e);
+            log.error("Failed to load jwt {}", jwtFilePath, e);
             throw new IllegalStateException("Failed to load JWT from " + jwtFilePath, e);
         }
     }
