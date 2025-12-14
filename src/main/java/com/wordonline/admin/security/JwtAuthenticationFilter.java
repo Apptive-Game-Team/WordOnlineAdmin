@@ -33,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         String token = extractTokenFromCookie(request);
         
-        if (token != null && accountServerClient.validateToken(token)) {
+        if (token != null) {
             UserInfoDto userInfo = accountServerClient.getUserInfo(token);
             
             if (userInfo != null && userInfo.getRoles() != null && userInfo.getRoles().contains(REQUIRED_ROLE)) {
