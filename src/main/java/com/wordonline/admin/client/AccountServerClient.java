@@ -21,7 +21,8 @@ public class AccountServerClient {
 
     private void init() {
         Server accountServer = serverRepository.findByType(ServerType.Account)
-                .orElseThrow(() -> new RuntimeException("Account server not found"));
+                .orElseThrow(() -> new RuntimeException(
+                        "Account server not found in database. Please ensure a server with type 'Account' is configured."));
         restClient = builder.baseUrl(accountServer.getUrl())
                 .build();
         log.info("Account server client initialized with URL: {}", accountServer.getUrl());
@@ -34,19 +35,24 @@ public class AccountServerClient {
 
         LoginRequestDto loginRequest = new LoginRequestDto(username, password);
         
-        ResponseEntity<TokenResponseDto> response = restClient.post()
-                .uri("/api/auth/login")
-                .body(loginRequest)
-                .retrieve()
-                .toEntity(TokenResponseDto.class);
+        try {
+            ResponseEntity<TokenResponseDto> response = restClient.post()
+                    .uri("/api/auth/login")
+                    .body(loginRequest)
+                    .retrieve()
+                    .toEntity(TokenResponseDto.class);
 
-        if (response.getStatusCode().isError() || response.getBody() == null) {
-            log.error("Login failed for user: {}", username);
-            throw new RuntimeException("Login failed");
+            if (response.getStatusCode().isError() || response.getBody() == null) {
+                log.error("Login failed for user: {} with status: {}", username, response.getStatusCode());
+                throw new RuntimeException("Login failed with status: " + response.getStatusCode());
+            }
+
+            log.info("Login successful for user: {}", username);
+            return response.getBody().getToken();
+        } catch (Exception e) {
+            log.error("Login failed for user: {}", username, e);
+            throw new RuntimeException("Login failed: " + e.getMessage(), e);
         }
-
-        log.info("Login successful for user: {}", username);
-        return response.getBody().getToken();
     }
 
     public boolean validateToken(String token) {
