@@ -22,7 +22,3 @@ spring:
       hibernate:
         show_sql: true
         format_sql: true
-  security:
-    user:
-      name: ${APPLICATION_USER}
-      password: ${APPLICATION_PW}
