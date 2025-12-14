@@ -2,6 +2,7 @@ package com.wordonline.admin.client;
 
 import com.wordonline.admin.dto.auth.LoginRequestDto;
 import com.wordonline.admin.dto.auth.TokenResponseDto;
+import com.wordonline.admin.dto.auth.UserInfoDto;
 import com.wordonline.admin.entity.server.Server;
 import com.wordonline.admin.entity.server.ServerType;
 import com.wordonline.admin.repository.server.ServerRepository;
@@ -71,6 +72,25 @@ public class AccountServerClient {
         } catch (Exception e) {
             log.debug("Token validation failed", e);
             return false;
+        }
+    }
+
+    public UserInfoDto getUserInfo(String token) {
+        if (restClient == null) {
+            init();
+        }
+
+        try {
+            UserInfoDto userInfo = restClient.get()
+                    .uri("/api/auth/userinfo")
+                    .header("Authorization", "Bearer " + token)
+                    .retrieve()
+                    .body(UserInfoDto.class);
+
+            return userInfo;
+        } catch (Exception e) {
+            log.debug("Failed to get user info", e);
+            return null;
         }
     }
 }
