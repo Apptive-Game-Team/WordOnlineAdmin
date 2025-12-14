@@ -29,14 +29,16 @@ public class JwtConfig {
             return NimbusJwtDecoder.withPublicKey(publicKey).build();
         } catch (Exception e) {
             log.error("Failed to load JWT public key from: {}", publicKeyPath, e);
-            throw new RuntimeException("Failed to initialize JWT decoder", e);
+            throw new RuntimeException("Failed to initialize JWT decoder with key: " + publicKeyPath, e);
         }
     }
 
     private RSAPublicKey loadPublicKey(String keyPath) throws Exception {
         String path = keyPath.startsWith("file:") ? keyPath.substring(5) : keyPath;
         
-        path = path.replaceFirst("^~", System.getProperty("user.home"));
+        if (path.startsWith("~")) {
+            path = System.getProperty("user.home") + path.substring(1);
+        }
         
         String keyContent = Files.readString(Paths.get(path));
         
