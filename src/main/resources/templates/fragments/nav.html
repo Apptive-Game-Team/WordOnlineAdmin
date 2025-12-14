@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
     <!-- Navigation Section -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light" th:fragment="nav">
     <a class="navbar-brand" href="#">Word Online Admin</a>
@@ -28,6 +28,11 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" th:href="@{/admin/spread-sheets/game-objects?tags=TYPE_Unit}">Spreadsheet</a>
+            </li>
+        </ul>
+        <ul class="navbar-nav ms-auto">
+            <li class="nav-item" sec:authorize="isAuthenticated()">
+                <a class="nav-link" th:href="@{/logout}">Logout</a>
             </li>
         </ul>
     </div>

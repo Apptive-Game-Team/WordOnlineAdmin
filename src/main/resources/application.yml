@@ -3,6 +3,7 @@ server:
 
 word-online:
   jwt:
+    public-key: ${JWT_PUBLIC_KEY}
     path: ${JWT_FILE_PATH}
 
 spring:
@@ -23,7 +24,3 @@ spring:
       hibernate:
         show_sql: true
         format_sql: true
-  security:
-    user:
-      name: ${APPLICATION_USER}
-      password: ${APPLICATION_PW}

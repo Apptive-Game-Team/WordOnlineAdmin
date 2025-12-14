@@ -3,6 +3,7 @@ package com.wordonline.admin.controller;
 import com.wordonline.admin.repository.tag.TagRepository;
 import com.wordonline.admin.service.SpreadSheetService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import java.util.List;
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/admin/spread-sheets")
+@PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
 public class SpreadSheetController {
 
     private final SpreadSheetService spreadSheetService;

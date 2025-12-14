@@ -13,3 +13,12 @@ CREATE TABLE game_object_tags (
 ALTER TABLE game_object_tags ADD CONSTRAINT uq_game_object_id_tag_id UNIQUE (game_object_id, tag_id);
 
 ALTER TABLE cards ADD COLUMN game_object_id BIGINT REFERENCES game_objects(id);
+
+CREATE TABLE servers (
+    id BIGSERIAL PRIMARY KEY,
+    protocol VARCHAR(10) NOT NULL,
+    domain VARCHAR(255) NOT NULL,
+    port INT NOT NULL,
+    type VARCHAR(10) NOT NULL,
+    state VARCHAR(10) NOT NULL DEFAULT 'INACTIVE'
+);
