@@ -29,7 +29,7 @@ public class RestClientConfig {
             return Files.readString(Path.of(jwtFilePath)).trim();
         } catch (IOException e) {
             log.error("Fail to Load jwt {}", jwtFilePath, e);
-            return "";
+            throw new IllegalStateException("Failed to load JWT from " + jwtFilePath, e);
         }
     }
 }
