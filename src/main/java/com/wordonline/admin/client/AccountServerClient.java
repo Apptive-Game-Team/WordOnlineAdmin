@@ -36,22 +36,22 @@ public class AccountServerClient {
         LoginRequestDto loginRequest = new LoginRequestDto(username, password);
         
         try {
-            ResponseEntity<TokenResponseDto> response = restClient.post()
+            TokenResponseDto response = restClient.post()
                     .uri("/api/auth/login")
                     .body(loginRequest)
                     .retrieve()
-                    .toEntity(TokenResponseDto.class);
+                    .body(TokenResponseDto.class);
 
-            if (response.getStatusCode().isError() || response.getBody() == null) {
-                log.error("Login failed for user: {} with status: {}", username, response.getStatusCode());
-                throw new RuntimeException("Login failed with status: " + response.getStatusCode());
+            if (response == null || response.getToken() == null) {
+                log.error("Login failed for user: {} - empty response", username);
+                throw new RuntimeException("Login failed - empty response from server");
             }
 
             log.info("Login successful for user: {}", username);
-            return response.getBody().getToken();
+            return response.getToken();
         } catch (Exception e) {
             log.error("Login failed for user: {}", username, e);
-            throw new RuntimeException("Login failed: " + e.getMessage(), e);
+            throw new RuntimeException("Invalid username or password");
         }
     }
 
@@ -61,15 +61,15 @@ public class AccountServerClient {
         }
 
         try {
-            ResponseEntity<Void> response = restClient.get()
+            restClient.get()
                     .uri("/api/auth/validate")
                     .header("Authorization", "Bearer " + token)
                     .retrieve()
-                    .toEntity(Void.class);
+                    .toBodilessEntity();
 
-            return response.getStatusCode().is2xxSuccessful();
+            return true;
         } catch (Exception e) {
-            log.error("Token validation failed", e);
+            log.debug("Token validation failed", e);
             return false;
         }
     }
