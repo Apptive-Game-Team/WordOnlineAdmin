@@ -16,7 +16,9 @@ ALTER TABLE cards ADD COLUMN game_object_id BIGINT REFERENCES game_objects(id);
 
 CREATE TABLE servers (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255),
-    type VARCHAR(50),
-    url VARCHAR(500)
+    protocol VARCHAR(10) NOT NULL,
+    domain VARCHAR(255) NOT NULL,
+    port INT NOT NULL,
+    type VARCHAR(10) NOT NULL,
+    state VARCHAR(10) NOT NULL DEFAULT 'INACTIVE'
 );

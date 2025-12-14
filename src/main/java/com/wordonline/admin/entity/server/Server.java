@@ -20,13 +20,24 @@ public class Server {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column
-    private String name;
+    @Column(nullable = false, length = 10)
+    private String protocol;
 
-    @Column
+    @Column(nullable = false)
+    private String domain;
+
+    @Column(nullable = false)
+    private Integer port;
+
+    @Column(nullable = false, length = 10)
     @Enumerated(EnumType.STRING)
     private ServerType type;
 
-    @Column
-    private String url;
+    @Column(nullable = false, length = 10)
+    @Enumerated(EnumType.STRING)
+    private ServerState state;
+
+    public String getUrl() {
+        return protocol + "://" + domain + ":" + port;
+    }
 }

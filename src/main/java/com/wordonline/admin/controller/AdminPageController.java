@@ -6,6 +6,7 @@ import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
 import com.wordonline.admin.repository.tag.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,12 +26,14 @@ public class AdminPageController {
         return "index";
     }
 
+    @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/game-object")
     public String adminGameObject(Model model) {
         model.addAttribute("gameObjects", gameObjectRepository.findAll());
         return "admin-game-object";
     }
 
+    @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/game-object/{gameObjectId}")
     public String adminParameterValue(@PathVariable Long gameObjectId, Model model) {
         GameObject gameObject = gameObjectRepository.findById(gameObjectId).orElseThrow();
@@ -40,12 +43,14 @@ public class AdminPageController {
         return "admin-parameter-value";
     }
 
+    @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/parameter")
     public String adminParameter(Model model) {
         model.addAttribute("parameters", parameterRepository.findAll());
         return "admin-parameter";
     }
 
+    @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/invalidate-cache")
     public String invalidateCache() {
         gameServerClient.invalidateCache();

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,7 +26,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtDecoder jwtDecoder;
-    private static final String REQUIRED_ROLE = "WORDONLINE_ADMIN";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) 
@@ -40,18 +40,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = jwt.getClaimAsString("sub");
                 List<String> roles = jwt.getClaimAsStringList("roles");
                 
-                if (roles != null && roles.contains(REQUIRED_ROLE)) {
-                    List<SimpleGrantedAuthority> authorities = roles.stream()
-                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                            .collect(Collectors.toList());
-                    
-                    UsernamePasswordAuthenticationToken authentication = 
-                            new UsernamePasswordAuthenticationToken(username, null, authorities);
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                } else {
-                    log.warn("User does not have required role: {}", REQUIRED_ROLE);
-                }
+                List<SimpleGrantedAuthority> authorities = roles != null 
+                        ? roles.stream()
+                                .map(SimpleGrantedAuthority::new)
+                                .collect(Collectors.toList())
+                        : Collections.emptyList();
+                
+                UsernamePasswordAuthenticationToken authentication = 
+                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (Exception e) {
                 log.debug("JWT validation failed", e);
             }

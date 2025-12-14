@@ -4,6 +4,7 @@ import com.wordonline.admin.entity.magic.Card;
 import com.wordonline.admin.entity.magic.Magic;
 import com.wordonline.admin.service.StatisticService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 @Controller
 @RequestMapping("/admin/statistics")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
 public class StatisticController {
 
     private final StatisticService statisticService;

@@ -21,9 +21,9 @@ public class AccountServerClient {
     private RestClient restClient;
 
     private void init() {
-        Server accountServer = serverRepository.findByType(ServerType.Account)
+        Server accountServer = serverRepository.findByType(ServerType.ACCOUNT)
                 .orElseThrow(() -> new RuntimeException(
-                        "Account server not found in database. Please ensure a server with type 'Account' is configured."));
+                        "Account server not found in database. Please ensure a server with type 'ACCOUNT' is configured."));
         restClient = builder.baseUrl(accountServer.getUrl())
                 .build();
         log.info("Account server client initialized with URL: {}", accountServer.getUrl());
