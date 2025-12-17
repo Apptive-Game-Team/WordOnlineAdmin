@@ -4,14 +4,112 @@
       layout:decorate="~{layout}">
 
     <head>
-        <title>Main Page</title>
+        <title>Server Status Dashboard</title>
+        <style>
+            .server-card {
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .server-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }
+            .status-badge {
+                font-size: 0.9rem;
+                padding: 0.4rem 0.8rem;
+            }
+            .server-icon {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+            }
+            .dashboard-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 2rem;
+                border-radius: 0.5rem;
+                margin-bottom: 2rem;
+            }
+        </style>
     </head>
 
     <body>
         <div layout:fragment="content">
-            <h1>Main Content</h1>
-            <p>This is the main content of the index page.</p>
-            <a th:href="@{/admin/invalidate-cache}" class="btn btn-sm btn-primary">Invalidate Cache</a>
+            <div class="container">
+                <!-- Dashboard Header -->
+                <div class="dashboard-header">
+                    <h1 class="mb-2">🚀 Server Status Dashboard</h1>
+                    <p class="mb-0">Real-time monitoring of all Word Online servers</p>
+                </div>
+
+                <!-- Server Status Cards -->
+                <div class="row">
+                    <div class="col-md-6 col-lg-3 mb-4" th:each="server : ${servers}">
+                        <div class="card server-card h-100">
+                            <div class="card-body text-center">
+                                <!-- Server Type Icon -->
+                                <div class="server-icon">
+                                    <span th:switch="${server.type.name()}">
+                                        <span th:case="'GAME'">🎮</span>
+                                        <span th:case="'LOBBY'">🏠</span>
+                                        <span th:case="'ACCOUNT'">👤</span>
+                                        <span th:case="'ADMIN'">⚙️</span>
+                                    </span>
+                                </div>
+
+                                <!-- Server Type -->
+                                <h5 class="card-title mb-3" th:text="${server.type.name()}">Server Type</h5>
+
+                                <!-- Server Status Badge -->
+                                <div class="mb-3">
+                                    <span class="badge status-badge" 
+                                          th:classappend="${server.state.name() == 'ACTIVE' ? 'bg-success' : (server.state.name() == 'INACTIVE' ? 'bg-danger' : 'bg-warning')}"
+                                          th:text="${server.state.name()}">
+                                        Status
+                                    </span>
+                                </div>
+
+                                <!-- Server Details -->
+                                <div class="text-start small">
+                                    <div class="mb-2">
+                                        <strong>ID:</strong> 
+                                        <span th:text="${server.id}">1</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Protocol:</strong> 
+                                        <span th:text="${server.protocol}">http</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Domain:</strong> 
+                                        <span class="text-break" th:text="${server.domain}">localhost</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Port:</strong> 
+                                        <span th:text="${server.port}">8080</span>
+                                    </div>
+                                    <div>
+                                        <strong>URL:</strong> 
+                                        <a th:href="${server.url}" target="_blank" class="text-decoration-none">
+                                            <span class="text-break" th:text="${server.url}">http://localhost:8080</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div th:if="${#lists.isEmpty(servers)}" class="alert alert-info text-center" role="alert">
+                    <h4 class="alert-heading">No Servers Found</h4>
+                    <p>There are currently no servers configured in the system.</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-4 text-center">
+                    <a th:href="@{/admin/invalidate-cache}" class="btn btn-primary">
+                        🔄 Invalidate Cache
+                    </a>
+                </div>
+            </div>
         </div>
     </body>
 </html>
