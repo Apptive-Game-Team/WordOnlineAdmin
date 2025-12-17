@@ -5,6 +5,7 @@ import com.wordonline.admin.entity.parameter.GameObject;
 import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
 import com.wordonline.admin.repository.tag.TagRepository;
+import com.wordonline.admin.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -20,9 +21,11 @@ public class AdminPageController {
     private final ParameterRepository parameterRepository;
     private final GameServerClient gameServerClient;
     private final TagRepository tagRepository;
+    private final ServerService serverService;
 
     @GetMapping("/")
-    public String index() {
+    public String index(Model model) {
+        model.addAttribute("servers", serverService.getAllServers());
         return "index";
     }
 
