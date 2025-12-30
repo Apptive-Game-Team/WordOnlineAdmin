@@ -32,11 +32,18 @@ public class StatisticController {
         
         GameType type = parseGameType(gameType);
         
-        // Default to 7 days if not specified
+        // Default to 7 days if not specified, with validation
         int daysFilter = (days != null && days > 0) ? days : 7;
+        // Cap at 365 days to prevent performance issues
+        if (daysFilter > 365) {
+            daysFilter = 365;
+        }
         LocalDateTime fromDate = LocalDateTime.now().minusDays(daysFilter);
         
+        String gameTypeForUrl = (gameType != null && !"ALL".equalsIgnoreCase(gameType)) ? gameType : null;
+        
         model.addAttribute("selectedGameType", gameType != null ? gameType : "ALL");
+        model.addAttribute("gameTypeForUrl", gameTypeForUrl);
         model.addAttribute("selectedDays", daysFilter);
         model.addAttribute("cardWinCounts", toCardNameMap(statisticService.calculateCardWinCounts(type, fromDate)));
         model.addAttribute("magicWinCounts", toMagicNameMap(statisticService.calculateMagicWinCounts(type, fromDate)));
