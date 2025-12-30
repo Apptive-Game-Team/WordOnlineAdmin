@@ -1,5 +1,6 @@
 package com.wordonline.admin.service;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,11 +25,15 @@ public class StatisticService {
     private final StatisticGameRepository statisticGameRepository;
 
     public Map<Card, Integer> calculateCardWinCounts() {
-        return calculateCardWinCounts(null);
+        return calculateCardWinCounts(null, null);
     }
 
     public Map<Card, Integer> calculateCardWinCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculateCardWinCounts(gameType, null);
+    }
+
+    public Map<Card, Integer> calculateCardWinCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
 
         Map<Card, Integer> cardCounts = new HashMap<>();
 
@@ -51,11 +56,15 @@ public class StatisticService {
     }
 
     public Map<Magic, Integer> calculateMagicWinCounts() {
-        return calculateMagicWinCounts(null);
+        return calculateMagicWinCounts(null, null);
     }
 
     public Map<Magic, Integer> calculateMagicWinCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculateMagicWinCounts(gameType, null);
+    }
+
+    public Map<Magic, Integer> calculateMagicWinCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
 
         Map<Magic, Integer> magicCounts = new HashMap<>();
 
@@ -78,11 +87,15 @@ public class StatisticService {
     }
 
     public Map<Card, Integer> calculateCardGameCounts() {
-        return calculateCardGameCounts(null);
+        return calculateCardGameCounts(null, null);
     }
 
     public Map<Card, Integer> calculateCardGameCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculateCardGameCounts(gameType, null);
+    }
+
+    public Map<Card, Integer> calculateCardGameCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
 
         Map<Card, Integer> cardCounts = new HashMap<>();
 
@@ -105,11 +118,15 @@ public class StatisticService {
     }
 
     public Map<Magic, Integer> calculateMagicGameCounts() {
-        return calculateMagicGameCounts(null);
+        return calculateMagicGameCounts(null, null);
     }
 
     public Map<Magic, Integer> calculateMagicGameCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculateMagicGameCounts(gameType, null);
+    }
+
+    public Map<Magic, Integer> calculateMagicGameCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
 
         Map<Magic, Integer> magicCounts = new HashMap<>();
 
@@ -127,11 +144,15 @@ public class StatisticService {
     }
 
     public Map<Card, Integer> calculateCardUseCounts() {
-        return calculateCardUseCounts(null);
+        return calculateCardUseCounts(null, null);
     }
 
     public Map<Card, Integer> calculateCardUseCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculateCardUseCounts(gameType, null);
+    }
+
+    public Map<Card, Integer> calculateCardUseCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
 
         Map<Card, Integer> cardCounts = new HashMap<>();
 
@@ -148,11 +169,15 @@ public class StatisticService {
     }
 
     public Map<Magic, Integer> calculateMagicUseCounts() {
-        return calculateMagicUseCounts(null);
+        return calculateMagicUseCounts(null, null);
     }
 
     public Map<Magic, Integer> calculateMagicUseCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculateMagicUseCounts(gameType, null);
+    }
+
+    public Map<Magic, Integer> calculateMagicUseCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
 
         Map<Magic, Integer> magicCounts = new HashMap<>();
 
@@ -176,7 +201,7 @@ public class StatisticService {
      * @return Map where keys are player user IDs (Long) and values are win counts (Integer)
      */
     public Map<Long, Integer> calculatePlayerWinCounts() {
-        return calculatePlayerWinCounts(null);
+        return calculatePlayerWinCounts(null, null);
     }
 
     /**
@@ -186,7 +211,18 @@ public class StatisticService {
      * @return Map where keys are player user IDs (Long) and values are win counts (Integer)
      */
     public Map<Long, Integer> calculatePlayerWinCounts(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculatePlayerWinCounts(gameType, null);
+    }
+
+    /**
+     * Calculates the number of wins per player, filtered by game type and date.
+     * 
+     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param fromDate The date to filter from (inclusive), or null for all dates
+     * @return Map where keys are player user IDs (Long) and values are win counts (Integer)
+     */
+    public Map<Long, Integer> calculatePlayerWinCounts(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
         
         Map<Long, Integer> winCounts = new HashMap<>();
         
@@ -206,7 +242,7 @@ public class StatisticService {
      * @return Map where keys are player user IDs (Long) and values are Maps of Card to usage count (Integer)
      */
     public Map<Long, Map<Card, Integer>> calculatePlayerCardUsage() {
-        return calculatePlayerCardUsage(null);
+        return calculatePlayerCardUsage(null, null);
     }
 
     /**
@@ -216,7 +252,18 @@ public class StatisticService {
      * @return Map where keys are player user IDs (Long) and values are Maps of Card to usage count (Integer)
      */
     public Map<Long, Map<Card, Integer>> calculatePlayerCardUsage(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculatePlayerCardUsage(gameType, null);
+    }
+
+    /**
+     * Calculates card usage statistics per player, filtered by game type and date.
+     * 
+     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param fromDate The date to filter from (inclusive), or null for all dates
+     * @return Map where keys are player user IDs (Long) and values are Maps of Card to usage count (Integer)
+     */
+    public Map<Long, Map<Card, Integer>> calculatePlayerCardUsage(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
         
         Map<Long, Map<Card, Integer>> playerCardUsage = new HashMap<>();
         
@@ -240,7 +287,7 @@ public class StatisticService {
      * @return Map where keys are player user IDs (Long) and values are Maps of Magic to usage count (Integer)
      */
     public Map<Long, Map<Magic, Integer>> calculatePlayerMagicUsage() {
-        return calculatePlayerMagicUsage(null);
+        return calculatePlayerMagicUsage(null, null);
     }
 
     /**
@@ -250,7 +297,18 @@ public class StatisticService {
      * @return Map where keys are player user IDs (Long) and values are Maps of Magic to usage count (Integer)
      */
     public Map<Long, Map<Magic, Integer>> calculatePlayerMagicUsage(GameType gameType) {
-        List<StatisticGame> statisticGames = getStatisticGames(gameType);
+        return calculatePlayerMagicUsage(gameType, null);
+    }
+
+    /**
+     * Calculates magic usage statistics per player, filtered by game type and date.
+     * 
+     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param fromDate The date to filter from (inclusive), or null for all dates
+     * @return Map where keys are player user IDs (Long) and values are Maps of Magic to usage count (Integer)
+     */
+    public Map<Long, Map<Magic, Integer>> calculatePlayerMagicUsage(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames = getStatisticGames(gameType, fromDate);
         
         Map<Long, Map<Magic, Integer>> playerMagicUsage = new HashMap<>();
         
@@ -268,10 +326,15 @@ public class StatisticService {
         return playerMagicUsage;
     }
 
-    private List<StatisticGame> getStatisticGames(GameType gameType) {
-        if (gameType == null) {
+    private List<StatisticGame> getStatisticGames(GameType gameType, LocalDateTime fromDate) {
+        if (gameType == null && fromDate == null) {
             return statisticGameRepository.findAll();
+        } else if (gameType == null) {
+            return statisticGameRepository.findByCreatedAtAfter(fromDate);
+        } else if (fromDate == null) {
+            return statisticGameRepository.findByGameType(gameType);
+        } else {
+            return statisticGameRepository.findByGameTypeAndCreatedAtAfter(gameType, fromDate);
         }
-        return statisticGameRepository.findByGameType(gameType);
     }
 }

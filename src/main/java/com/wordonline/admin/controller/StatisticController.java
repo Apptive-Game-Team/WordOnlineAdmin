@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -24,21 +25,30 @@ public class StatisticController {
     private final StatisticService statisticService;
 
     @GetMapping
-    public String getStatistics(@RequestParam(required = false) String gameType, Model model) {
+    public String getStatistics(
+            @RequestParam(required = false) String gameType,
+            @RequestParam(required = false) Integer days,
+            Model model) {
+        
         GameType type = parseGameType(gameType);
         
+        // Default to 7 days if not specified
+        int daysFilter = (days != null && days > 0) ? days : 7;
+        LocalDateTime fromDate = LocalDateTime.now().minusDays(daysFilter);
+        
         model.addAttribute("selectedGameType", gameType != null ? gameType : "ALL");
-        model.addAttribute("cardWinCounts", toCardNameMap(statisticService.calculateCardWinCounts(type)));
-        model.addAttribute("magicWinCounts", toMagicNameMap(statisticService.calculateMagicWinCounts(type)));
-        model.addAttribute("cardGameCounts", toCardNameMap(statisticService.calculateCardGameCounts(type)));
-        model.addAttribute("magicGameCounts", toMagicNameMap(statisticService.calculateMagicGameCounts(type)));
-        model.addAttribute("cardUseCounts", toCardNameMap(statisticService.calculateCardUseCounts(type)));
-        model.addAttribute("magicUseCounts", toMagicNameMap(statisticService.calculateMagicUseCounts(type)));
+        model.addAttribute("selectedDays", daysFilter);
+        model.addAttribute("cardWinCounts", toCardNameMap(statisticService.calculateCardWinCounts(type, fromDate)));
+        model.addAttribute("magicWinCounts", toMagicNameMap(statisticService.calculateMagicWinCounts(type, fromDate)));
+        model.addAttribute("cardGameCounts", toCardNameMap(statisticService.calculateCardGameCounts(type, fromDate)));
+        model.addAttribute("magicGameCounts", toMagicNameMap(statisticService.calculateMagicGameCounts(type, fromDate)));
+        model.addAttribute("cardUseCounts", toCardNameMap(statisticService.calculateCardUseCounts(type, fromDate)));
+        model.addAttribute("magicUseCounts", toMagicNameMap(statisticService.calculateMagicUseCounts(type, fromDate)));
         
         // Per-player statistics
-        model.addAttribute("playerWinCounts", statisticService.calculatePlayerWinCounts(type));
-        model.addAttribute("playerCardUsage", convertPlayerCardUsage(statisticService.calculatePlayerCardUsage(type)));
-        model.addAttribute("playerMagicUsage", convertPlayerMagicUsage(statisticService.calculatePlayerMagicUsage(type)));
+        model.addAttribute("playerWinCounts", statisticService.calculatePlayerWinCounts(type, fromDate));
+        model.addAttribute("playerCardUsage", convertPlayerCardUsage(statisticService.calculatePlayerCardUsage(type, fromDate)));
+        model.addAttribute("playerMagicUsage", convertPlayerMagicUsage(statisticService.calculatePlayerMagicUsage(type, fromDate)));
         
         return "admin-statistics";
     }
