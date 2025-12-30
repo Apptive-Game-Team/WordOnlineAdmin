@@ -120,11 +120,44 @@
         const playerCardUsage = /*[[${playerCardUsage}]]*/ {};
         const playerMagicUsage = /*[[${playerMagicUsage}]]*/ {};
 
+        // Reusable chart colors
+        const chartBackgroundColors = [
+            'rgba(255, 99, 132, 0.6)',
+            'rgba(54, 162, 235, 0.6)',
+            'rgba(255, 206, 86, 0.6)',
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(153, 102, 255, 0.6)',
+            'rgba(255, 159, 64, 0.6)'
+        ];
+
+        const pieChartBackgroundColors = [
+            'rgba(255, 99, 132, 0.2)',
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(255, 206, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(153, 102, 255, 0.2)',
+            'rgba(255, 159, 64, 0.2)'
+        ];
+
+        const pieChartBorderColors = [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)'
+        ];
+
         // Helper function to create chart data
         function createChartData(data) {
             const labels = Object.keys(data);
             const values = Object.values(data);
             return { labels, values };
+        }
+
+        // Helper function to check if object has data
+        function hasData(obj) {
+            return obj && Object.keys(obj).length > 0;
         }
 
         // Player Win Counts Chart
@@ -153,6 +186,11 @@
         // Player Card Usage Charts
         const playerCardUsageContainer = document.getElementById('playerCardUsageCharts');
         Object.entries(playerCardUsage).forEach(([playerId, cardUsage]) => {
+            // Skip if player has no card usage data
+            if (!hasData(cardUsage)) {
+                return;
+            }
+
             const canvasId = `playerCardUsage_${playerId}`;
             const canvas = document.createElement('canvas');
             canvas.id = canvasId;
@@ -167,14 +205,7 @@
                     datasets: [{
                         label: `Player ${playerId} Card Usage`,
                         data: cardData.values,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.6)',
-                            'rgba(54, 162, 235, 0.6)',
-                            'rgba(255, 206, 86, 0.6)',
-                            'rgba(75, 192, 192, 0.6)',
-                            'rgba(153, 102, 255, 0.6)',
-                            'rgba(255, 159, 64, 0.6)'
-                        ]
+                        backgroundColor: chartBackgroundColors
                     }]
                 },
                 options: {
@@ -191,6 +222,11 @@
         // Player Magic Usage Charts
         const playerMagicUsageContainer = document.getElementById('playerMagicUsageCharts');
         Object.entries(playerMagicUsage).forEach(([playerId, magicUsage]) => {
+            // Skip if player has no magic usage data
+            if (!hasData(magicUsage)) {
+                return;
+            }
+
             const canvasId = `playerMagicUsage_${playerId}`;
             const canvas = document.createElement('canvas');
             canvas.id = canvasId;
@@ -205,14 +241,7 @@
                     datasets: [{
                         label: `Player ${playerId} Magic Usage`,
                         data: magicData.values,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.6)',
-                            'rgba(54, 162, 235, 0.6)',
-                            'rgba(255, 206, 86, 0.6)',
-                            'rgba(75, 192, 192, 0.6)',
-                            'rgba(153, 102, 255, 0.6)',
-                            'rgba(255, 159, 64, 0.6)'
-                        ]
+                        backgroundColor: chartBackgroundColors
                     }]
                 },
                 options: {
@@ -293,22 +322,8 @@
                 datasets: [{
                     label: 'Usage Ratio',
                     data: cardUsageData.values,
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(255, 206, 86, 0.2)',
-                        'rgba(75, 192, 192, 0.2)',
-                        'rgba(153, 102, 255, 0.2)',
-                        'rgba(255, 159, 64, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)'
-                    ],
+                    backgroundColor: pieChartBackgroundColors,
+                    borderColor: pieChartBorderColors,
                     borderWidth: 1
                 }]
             }
@@ -381,22 +396,8 @@
                 datasets: [{
                     label: 'Usage Ratio',
                     data: magicUsageData.values,
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(255, 206, 86, 0.2)',
-                        'rgba(75, 192, 192, 0.2)',
-                        'rgba(153, 102, 255, 0.2)',
-                        'rgba(255, 159, 64, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)'
-                    ],
+                    backgroundColor: pieChartBackgroundColors,
+                    borderColor: pieChartBorderColors,
                     borderWidth: 1
                 }]
             }
