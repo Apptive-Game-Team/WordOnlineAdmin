@@ -14,6 +14,49 @@
     <div class="container">
         <h1>Statistics</h1>
 
+        <!-- Game Type Filter -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>Filter by Game Type</h5>
+                <div class="btn-group" role="group">
+                    <a th:href="@{/admin/statistics}" 
+                       th:classappend="${selectedGameType == 'ALL'} ? 'active' : ''"
+                       class="btn btn-outline-primary">All Games</a>
+                    <a th:href="@{/admin/statistics(gameType='PVP')}" 
+                       th:classappend="${selectedGameType == 'PVP'} ? 'active' : ''"
+                       class="btn btn-outline-primary">PVP</a>
+                    <a th:href="@{/admin/statistics(gameType='PRACTICE')}" 
+                       th:classappend="${selectedGameType == 'PRACTICE'} ? 'active' : ''"
+                       class="btn btn-outline-primary">Practice</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per-Player Statistics -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Player Statistics</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <h4>Win Counts by Player</h4>
+                        <canvas id="playerWinCountsChart"></canvas>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h4>Card Usage by Player</h4>
+                        <div id="playerCardUsageCharts"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h4>Magic Usage by Player</h4>
+                        <div id="playerMagicUsageCharts"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Card Statistics -->
         <div class="card mt-4">
             <div class="card-header">
@@ -73,6 +116,9 @@
         const magicGameCounts = /*[[${magicGameCounts}]]*/ {};
         const cardUseCounts = /*[[${cardUseCounts}]]*/ {};
         const magicUseCounts = /*[[${magicUseCounts}]]*/ {};
+        const playerWinCounts = /*[[${playerWinCounts}]]*/ {};
+        const playerCardUsage = /*[[${playerCardUsage}]]*/ {};
+        const playerMagicUsage = /*[[${playerMagicUsage}]]*/ {};
 
         // Helper function to create chart data
         function createChartData(data) {
@@ -80,6 +126,105 @@
             const values = Object.values(data);
             return { labels, values };
         }
+
+        // Player Win Counts Chart
+        const playerWinCountsData = createChartData(playerWinCounts);
+        new Chart(document.getElementById('playerWinCountsChart'), {
+            type: 'bar',
+            data: {
+                labels: playerWinCountsData.labels.map(id => `Player ${id}`),
+                datasets: [{
+                    label: 'Win Count',
+                    data: playerWinCountsData.values,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Player Card Usage Charts
+        const playerCardUsageContainer = document.getElementById('playerCardUsageCharts');
+        Object.entries(playerCardUsage).forEach(([playerId, cardUsage]) => {
+            const canvasId = `playerCardUsage_${playerId}`;
+            const canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            canvas.style.marginBottom = '20px';
+            playerCardUsageContainer.appendChild(canvas);
+
+            const cardData = createChartData(cardUsage);
+            new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels: cardData.labels,
+                    datasets: [{
+                        label: `Player ${playerId} Card Usage`,
+                        data: cardData.values,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)',
+                            'rgba(255, 159, 64, 0.6)'
+                        ]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Player ${playerId} - Card Usage`
+                        }
+                    }
+                }
+            });
+        });
+
+        // Player Magic Usage Charts
+        const playerMagicUsageContainer = document.getElementById('playerMagicUsageCharts');
+        Object.entries(playerMagicUsage).forEach(([playerId, magicUsage]) => {
+            const canvasId = `playerMagicUsage_${playerId}`;
+            const canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            canvas.style.marginBottom = '20px';
+            playerMagicUsageContainer.appendChild(canvas);
+
+            const magicData = createChartData(magicUsage);
+            new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels: magicData.labels,
+                    datasets: [{
+                        label: `Player ${playerId} Magic Usage`,
+                        data: magicData.values,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)',
+                            'rgba(255, 159, 64, 0.6)'
+                        ]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Player ${playerId} - Magic Usage`
+                        }
+                    }
+                }
+            });
+        });
 
         // Card Charts
         const cardTotalPlaysData = createChartData(cardGameCounts);
