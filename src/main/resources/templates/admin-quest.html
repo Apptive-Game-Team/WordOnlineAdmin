@@ -51,7 +51,7 @@
                                     th:data-progress-checker="${quest.progressChecker}"
                                     th:data-require-value="${quest.requireValue}"
                                     th:data-reward-giver="${quest.rewardGiver}"
-                                    th:data-reward-params="${#strings.replace(#strings.replace(#strings.replace(#strings.arrayJoin(quest.rewardParams.![name + ':' + value].toArray(), ','), '[', ''), ']', ''), ' ', '')}"
+                                    th:data-reward-params="${quest.getRewardParamsString()}"
                                     data-bs-toggle="modal" 
                                     data-bs-target="#editQuestModal">
                                 Edit
@@ -144,8 +144,6 @@
     </div>
 
     <script>
-        let paramCounter = 0;
-
         function addRewardParam(mode) {
             const container = document.getElementById(mode + 'RewardParamsList');
             const paramDiv = document.createElement('div');

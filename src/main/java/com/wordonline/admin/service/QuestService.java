@@ -24,6 +24,7 @@ public class QuestService {
     private final QuestRepository questRepository;
     private final RewardParamRepository rewardParamRepository;
 
+    @Transactional(readOnly = true)
     public List<QuestDto> findAllQuests() {
         return questRepository.findAll().stream()
                 .map(quest -> {
