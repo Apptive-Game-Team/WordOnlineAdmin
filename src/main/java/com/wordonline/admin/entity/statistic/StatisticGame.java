@@ -3,6 +3,7 @@ package com.wordonline.admin.entity.statistic;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -25,6 +26,7 @@ public class StatisticGame {
     private LocalDateTime createdAt;
     
     @Enumerated(EnumType.STRING)
+    @Column(name = "game_type", columnDefinition = "varchar(20)")
     private GameType gameType;
 
     @OneToMany(mappedBy = "statisticGame")
