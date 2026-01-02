@@ -375,7 +375,8 @@
 
         // Card Charts (lazy load on tab activation)
         let cardChartsInitialized = false;
-        document.getElementById('card-tab').addEventListener('click', function() {
+        const cardTabEl = document.getElementById('card-tab');
+        cardTabEl.addEventListener('shown.bs.tab', function() {
             if (!cardChartsInitialized) {
                 cardChartsInitialized = true;
                 
@@ -449,7 +450,8 @@
 
         // Magic Charts (lazy load on tab activation)
         let magicChartsInitialized = false;
-        document.getElementById('magic-tab').addEventListener('click', function() {
+        const magicTabEl = document.getElementById('magic-tab');
+        magicTabEl.addEventListener('shown.bs.tab', function() {
             if (!magicChartsInitialized) {
                 magicChartsInitialized = true;
                 
