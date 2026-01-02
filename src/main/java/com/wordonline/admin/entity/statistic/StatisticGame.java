@@ -3,6 +3,9 @@ package com.wordonline.admin.entity.statistic;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,7 +29,8 @@ public class StatisticGame {
     private LocalDateTime createdAt;
     
     @Enumerated(EnumType.STRING)
-    @Column(name = "game_type", columnDefinition = "varchar(20)")
+    @Column(name = "game_type")
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private GameType gameType;
 
     @OneToMany(mappedBy = "statisticGame")
