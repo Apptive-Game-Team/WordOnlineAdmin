@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Quest Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Quest Management</h1>
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Quests</h2>
+            </div>
+            <div class="card-body">
+                <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createQuestModal">
+                    Create Quest
+                </button>
+
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Progress Checker</th>
+                        <th>Require Value</th>
+                        <th>Reward Giver</th>
+                        <th>Reward Params</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="quest : ${quests}">
+                        <td th:text="${quest.id}"></td>
+                        <td th:text="${quest.progressChecker}"></td>
+                        <td th:text="${quest.requireValue}"></td>
+                        <td th:text="${quest.rewardGiver}"></td>
+                        <td>
+                            <ul class="list-unstyled mb-0">
+                                <li th:each="rewardParam : ${quest.rewardParams}">
+                                    <small th:text="${rewardParam.name + ': ' + rewardParam.value}"></small>
+                                </li>
+                            </ul>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-info edit-quest-btn" 
+                                    th:data-quest-id="${quest.id}"
+                                    th:data-progress-checker="${quest.progressChecker}"
+                                    th:data-require-value="${quest.requireValue}"
+                                    th:data-reward-giver="${quest.rewardGiver}"
+                                    th:data-reward-params="${quest.getRewardParamsString()}"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#editQuestModal">
+                                Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger delete-quest-btn" 
+                                    th:data-quest-id="${quest.id}">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Quest Modal -->
+    <div class="modal fade" id="createQuestModal" tabindex="-1" aria-labelledby="createQuestModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createQuestModalLabel">Create Quest</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createQuestForm">
+                        <div class="mb-3">
+                            <label for="createProgressChecker" class="form-label">Progress Checker (Bean Name)</label>
+                            <input type="text" class="form-control" id="createProgressChecker" name="progressChecker" maxlength="31">
+                        </div>
+                        <div class="mb-3">
+                            <label for="createRequireValue" class="form-label">Require Value</label>
+                            <input type="number" class="form-control" id="createRequireValue" name="requireValue" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="createRewardGiver" class="form-label">Reward Giver (Bean Name)</label>
+                            <input type="text" class="form-control" id="createRewardGiver" name="rewardGiver" maxlength="31">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reward Parameters</label>
+                            <div id="createRewardParamsList"></div>
+                            <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addRewardParam('create')">Add Parameter</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitCreateQuest()">Create Quest</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Quest Modal -->
+    <div class="modal fade" id="editQuestModal" tabindex="-1" aria-labelledby="editQuestModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editQuestModalLabel">Edit Quest</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editQuestForm">
+                        <input type="hidden" id="editQuestId" name="questId">
+                        <div class="mb-3">
+                            <label for="editProgressChecker" class="form-label">Progress Checker (Bean Name)</label>
+                            <input type="text" class="form-control" id="editProgressChecker" name="progressChecker" maxlength="31">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editRequireValue" class="form-label">Require Value</label>
+                            <input type="number" class="form-control" id="editRequireValue" name="requireValue" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editRewardGiver" class="form-label">Reward Giver (Bean Name)</label>
+                            <input type="text" class="form-control" id="editRewardGiver" name="rewardGiver" maxlength="31">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reward Parameters</label>
+                            <div id="editRewardParamsList"></div>
+                            <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addRewardParam('edit')">Add Parameter</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditQuest()">Update Quest</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+        function addRewardParam(mode) {
+            const container = document.getElementById(mode + 'RewardParamsList');
+            const paramDiv = document.createElement('div');
+            paramDiv.className = 'input-group mb-2';
+            paramDiv.innerHTML = `
+                <input type="text" class="form-control param-name" placeholder="Parameter Name" maxlength="31">
+                <input type="number" class="form-control param-value" placeholder="Value">
+                <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+            `;
+            container.appendChild(paramDiv);
+        }
+
+        function collectRewardParams(mode) {
+            const container = document.getElementById(mode + 'RewardParamsList');
+            const params = [];
+            const paramGroups = container.querySelectorAll('.input-group');
+            paramGroups.forEach(group => {
+                const name = group.querySelector('.param-name').value;
+                const value = parseInt(group.querySelector('.param-value').value);
+                if (name && !isNaN(value)) {
+                    params.push({ id: null, name: name, value: value });
+                }
+            });
+            return params;
+        }
+
+        function submitCreateQuest() {
+            const form = document.getElementById('createQuestForm');
+            const formData = new FormData(form);
+            const rewardParams = collectRewardParams('create');
+            
+            const data = {
+                progressChecker: formData.get('progressChecker') || null,
+                requireValue: parseInt(formData.get('requireValue')),
+                rewardGiver: formData.get('rewardGiver') || null,
+                rewardParams: rewardParams
+            };
+
+            fetch('/api/admin/quests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to create quest');
+                }
+            });
+        }
+
+        function submitEditQuest() {
+            const questId = document.getElementById('editQuestId').value;
+            const form = document.getElementById('editQuestForm');
+            const formData = new FormData(form);
+            const rewardParams = collectRewardParams('edit');
+            
+            const data = {
+                progressChecker: formData.get('progressChecker') || null,
+                requireValue: parseInt(formData.get('requireValue')),
+                rewardGiver: formData.get('rewardGiver') || null,
+                rewardParams: rewardParams
+            };
+
+            fetch(`/api/admin/quests/${questId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to update quest');
+                }
+            });
+        }
+
+        // Edit button handler
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.edit-quest-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const questId = this.getAttribute('data-quest-id');
+                    const progressChecker = this.getAttribute('data-progress-checker');
+                    const requireValue = this.getAttribute('data-require-value');
+                    const rewardGiver = this.getAttribute('data-reward-giver');
+                    const rewardParamsStr = this.getAttribute('data-reward-params');
+
+                    document.getElementById('editQuestId').value = questId;
+                    document.getElementById('editProgressChecker').value = progressChecker || '';
+                    document.getElementById('editRequireValue').value = requireValue;
+                    document.getElementById('editRewardGiver').value = rewardGiver || '';
+
+                    // Clear and populate reward params
+                    const container = document.getElementById('editRewardParamsList');
+                    container.innerHTML = '';
+                    
+                    if (rewardParamsStr) {
+                        const params = rewardParamsStr.split(',');
+                        params.forEach(param => {
+                            if (param) {
+                                const [name, value] = param.split(':');
+                                const paramDiv = document.createElement('div');
+                                paramDiv.className = 'input-group mb-2';
+                                paramDiv.innerHTML = `
+                                    <input type="text" class="form-control param-name" placeholder="Parameter Name" maxlength="31" value="${name}">
+                                    <input type="number" class="form-control param-value" placeholder="Value" value="${value}">
+                                    <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                                `;
+                                container.appendChild(paramDiv);
+                            }
+                        });
+                    }
+                });
+            });
+
+            // Delete button handler
+            document.querySelectorAll('.delete-quest-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const questId = this.getAttribute('data-quest-id');
+                    
+                    if (confirm('Are you sure you want to delete this quest?')) {
+                        fetch(`/api/admin/quests/${questId}`, {
+                            method: 'DELETE'
+                        }).then(response => {
+                            if (response.ok) {
+                                window.location.reload();
+                            } else {
+                                alert('Failed to delete quest');
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>
