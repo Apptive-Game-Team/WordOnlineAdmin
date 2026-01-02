@@ -207,7 +207,7 @@ public class StatisticService {
     /**
      * Calculates the number of wins per player, filtered by game type.
      * 
-     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param gameType The type of game to filter by (PVP, Practice), or null for all games
      * @return Map where keys are player user IDs (Long) and values are win counts (Integer)
      */
     public Map<Long, Integer> calculatePlayerWinCounts(GameType gameType) {
@@ -217,7 +217,7 @@ public class StatisticService {
     /**
      * Calculates the number of wins per player, filtered by game type and date.
      * 
-     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param gameType The type of game to filter by (PVP, Practice), or null for all games
      * @param fromDate The date to filter from (inclusive), or null for all dates
      * @return Map where keys are player user IDs (Long) and values are win counts (Integer)
      */
@@ -248,7 +248,7 @@ public class StatisticService {
     /**
      * Calculates card usage statistics per player, filtered by game type.
      * 
-     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param gameType The type of game to filter by (PVP, Practice), or null for all games
      * @return Map where keys are player user IDs (Long) and values are Maps of Card to usage count (Integer)
      */
     public Map<Long, Map<Card, Integer>> calculatePlayerCardUsage(GameType gameType) {
@@ -258,7 +258,7 @@ public class StatisticService {
     /**
      * Calculates card usage statistics per player, filtered by game type and date.
      * 
-     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param gameType The type of game to filter by (PVP, Practice), or null for all games
      * @param fromDate The date to filter from (inclusive), or null for all dates
      * @return Map where keys are player user IDs (Long) and values are Maps of Card to usage count (Integer)
      */
@@ -293,7 +293,7 @@ public class StatisticService {
     /**
      * Calculates magic usage statistics per player, filtered by game type.
      * 
-     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param gameType The type of game to filter by (PVP, Practice), or null for all games
      * @return Map where keys are player user IDs (Long) and values are Maps of Magic to usage count (Integer)
      */
     public Map<Long, Map<Magic, Integer>> calculatePlayerMagicUsage(GameType gameType) {
@@ -303,7 +303,7 @@ public class StatisticService {
     /**
      * Calculates magic usage statistics per player, filtered by game type and date.
      * 
-     * @param gameType The type of game to filter by (PVP, PRACTICE), or null for all games
+     * @param gameType The type of game to filter by (PVP, Practice), or null for all games
      * @param fromDate The date to filter from (inclusive), or null for all dates
      * @return Map where keys are player user IDs (Long) and values are Maps of Magic to usage count (Integer)
      */

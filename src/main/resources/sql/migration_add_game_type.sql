@@ -1,5 +1,5 @@
 -- Add game_type column to statistic_games table
--- This migration adds support for PVP and PRACTICE game types
+-- This migration adds support for PVP and Practice game types
 
 ALTER TABLE statistic_games 
 ADD COLUMN game_type VARCHAR(20);
