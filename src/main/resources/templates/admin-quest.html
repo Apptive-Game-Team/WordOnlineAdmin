@@ -17,7 +17,7 @@
                 <h2>Quests</h2>
             </div>
             <div class="card-body">
-                <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#createQuestModal">
+                <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createQuestModal">
                     Create Quest
                 </button>
 
@@ -40,8 +40,8 @@
                         <td th:text="${quest.rewardGiver}"></td>
                         <td>
                             <ul class="list-unstyled mb-0">
-                                <li th:each="param : ${quest.rewardParams}">
-                                    <small th:text="${param.name + ': ' + param.value}"></small>
+                                <li th:each="rewardParam : ${quest.rewardParams}">
+                                    <small th:text="${rewardParam.name + ': ' + rewardParam.value}"></small>
                                 </li>
                             </ul>
                         </td>
@@ -143,7 +143,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         function addRewardParam(mode) {
             const container = document.getElementById(mode + 'RewardParamsList');
             const paramDiv = document.createElement('div');
@@ -283,7 +283,6 @@
             });
         });
     </script>
-</div>
 
 </body>
 </html>
