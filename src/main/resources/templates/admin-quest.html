@@ -52,8 +52,8 @@
                                     th:data-require-value="${quest.requireValue}"
                                     th:data-reward-giver="${quest.rewardGiver}"
                                     th:data-reward-params="${quest.getRewardParamsString()}"
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#editQuestModal">
+                                    data-toggle="modal"
+                                    data-target="#editQuestModal">
                                 Edit
                             </button>
                             <button type="button" class="btn btn-sm btn-danger delete-quest-btn" 
@@ -74,7 +74,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="createQuestModalLabel">Create Quest</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="createQuestForm">
@@ -98,7 +98,7 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" onclick="submitCreateQuest()">Create Quest</button>
                 </div>
             </div>
@@ -111,7 +111,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="editQuestModalLabel">Edit Quest</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="editQuestForm">
@@ -136,7 +136,7 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" onclick="submitEditQuest()">Update Quest</button>
                 </div>
             </div>
