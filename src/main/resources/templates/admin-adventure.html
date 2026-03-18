@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Adventure Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Adventure Management</h1>
+
+        <!-- Adventures Section -->
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2>Adventures</h2>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#createAdventureModal">
+                    Create Adventure
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Access Type</th>
+                        <th>Stages</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="adventure : ${adventures}">
+                        <td th:text="${adventure.id}"></td>
+                        <td th:text="${adventure.name}"></td>
+                        <td th:text="${adventure.accessType}"></td>
+                        <td th:text="${adventure.stages.size()}"></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-info edit-adventure-btn"
+                                    th:data-adventure-id="${adventure.id}"
+                                    th:data-adventure-name="${adventure.name}"
+                                    th:data-adventure-access-type="${adventure.accessType}"
+                                    data-toggle="modal"
+                                    data-target="#editAdventureModal">
+                                Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-success"
+                                    th:data-adventure-id="${adventure.id}"
+                                    onclick="openBulkStagesModal(this)">
+                                Bulk Add Stages
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger delete-adventure-btn"
+                                    th:data-adventure-id="${adventure.id}">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stages & Scenarios Section -->
+        <div th:each="adventure : ${adventures}" class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>
+                    Adventure #<span th:text="${adventure.id}"></span>:
+                    <span th:text="${adventure.name}"></span>
+                    (<span th:text="${adventure.accessType}"></span>)
+                    &mdash; Stages
+                </h4>
+                <button type="button" class="btn btn-sm btn-primary add-stage-btn"
+                        th:data-adventure-id="${adventure.id}">
+                    + Add Stage
+                </button>
+            </div>
+            <div class="card-body">
+                <div th:if="${adventure.stages.isEmpty()}">
+                    <p class="text-muted">No stages yet.</p>
+                </div>
+                <div th:each="stage : ${adventure.stages}" class="border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Stage #<span th:text="${stage.id}"></span></strong>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-primary"
+                                    th:data-stage-id="${stage.id}"
+                                    onclick="openBulkScenariosModal(this)">
+                                Bulk Add Scenarios
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger delete-stage-btn"
+                                    th:data-stage-id="${stage.id}">
+                                Delete Stage
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <strong>Scenarios:</strong>
+                        <span th:if="${stage.scenarios.isEmpty()}" class="text-muted ms-2">None</span>
+                        <span th:each="scenario : ${stage.scenarios}" class="badge bg-secondary me-1"
+                              th:text="'#' + ${scenario.id}"></span>
+                        <button type="button" class="btn btn-sm btn-outline-primary ms-2 add-scenario-btn"
+                                th:data-stage-id="${stage.id}">
+                            + Add Scenario
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Adventure Modal -->
+    <div class="modal fade" id="createAdventureModal" tabindex="-1" aria-labelledby="createAdventureModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createAdventureModalLabel">Create Adventure</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createAdventureForm">
+                        <div class="mb-3">
+                            <label for="createAdventureName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="createAdventureName" name="name" maxlength="31" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="createAdventureAccessType" class="form-label">Access Type</label>
+                            <select class="form-select" id="createAdventureAccessType" name="accessType">
+                                <option value="FREE">FREE</option>
+                                <option value="PAID">PAID</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitCreateAdventure()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Adventure Modal -->
+    <div class="modal fade" id="editAdventureModal" tabindex="-1" aria-labelledby="editAdventureModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editAdventureModalLabel">Edit Adventure</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editAdventureForm">
+                        <input type="hidden" id="editAdventureId">
+                        <div class="mb-3">
+                            <label for="editAdventureName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="editAdventureName" name="name" maxlength="31" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAdventureAccessType" class="form-label">Access Type</label>
+                            <select class="form-select" id="editAdventureAccessType" name="accessType">
+                                <option value="FREE">FREE</option>
+                                <option value="PAID">PAID</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditAdventure()">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Create Stages Modal -->
+    <div class="modal fade" id="bulkStagesModal" tabindex="-1" aria-labelledby="bulkStagesModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkStagesModalLabel">Bulk Create Stages</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="bulkStagesAdventureId">
+                    <div class="mb-3">
+                        <label for="bulkStageCount" class="form-label">Number of Stages (N)</label>
+                        <input type="number" class="form-control" id="bulkStageCount" min="1" value="1">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulkScenarioCount" class="form-label">Scenarios per Stage (M)</label>
+                        <input type="number" class="form-control" id="bulkScenarioCount" min="0" value="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitBulkCreateStages()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Create Scenarios Modal -->
+    <div class="modal fade" id="bulkScenariosModal" tabindex="-1" aria-labelledby="bulkScenariosModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkScenariosModalLabel">Bulk Create Scenarios</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="bulkScenariosStageId">
+                    <div class="mb-3">
+                        <label for="bulkScenarioCountForStage" class="form-label">Number of Scenarios (N)</label>
+                        <input type="number" class="form-control" id="bulkScenarioCountForStage" min="1" value="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitBulkCreateScenarios()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    function submitCreateAdventure() {
+        const form = document.getElementById('createAdventureForm');
+        const data = {
+            name: form.querySelector('#createAdventureName').value,
+            accessType: form.querySelector('#createAdventureAccessType').value
+        };
+        fetch('/api/admin/adventures', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to create adventure');
+            }
+        });
+    }
+
+    function submitEditAdventure() {
+        const adventureId = document.getElementById('editAdventureId').value;
+        const data = {
+            name: document.getElementById('editAdventureName').value,
+            accessType: document.getElementById('editAdventureAccessType').value
+        };
+        fetch(`/api/admin/adventures/${adventureId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to update adventure');
+            }
+        });
+    }
+
+    function openBulkStagesModal(btn) {
+        const adventureId = btn.getAttribute('data-adventure-id');
+        document.getElementById('bulkStagesAdventureId').value = adventureId;
+        const modal = new bootstrap.Modal(document.getElementById('bulkStagesModal'));
+        modal.show();
+    }
+
+    function submitBulkCreateStages() {
+        const adventureId = document.getElementById('bulkStagesAdventureId').value;
+        const stageCount = parseInt(document.getElementById('bulkStageCount').value);
+        const scenarioCount = parseInt(document.getElementById('bulkScenarioCount').value);
+        fetch(`/api/admin/adventures/${adventureId}/stages/bulk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stageCount: stageCount, scenarioCount: scenarioCount })
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to create stages');
+            }
+        });
+    }
+
+    function openBulkScenariosModal(btn) {
+        const stageId = btn.getAttribute('data-stage-id');
+        document.getElementById('bulkScenariosStageId').value = stageId;
+        const modal = new bootstrap.Modal(document.getElementById('bulkScenariosModal'));
+        modal.show();
+    }
+
+    function submitBulkCreateScenarios() {
+        const stageId = document.getElementById('bulkScenariosStageId').value;
+        const count = parseInt(document.getElementById('bulkScenarioCountForStage').value);
+        fetch(`/api/admin/stages/${stageId}/scenarios/bulk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count: count })
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to create scenarios');
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Edit adventure button
+        document.querySelectorAll('.edit-adventure-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                document.getElementById('editAdventureId').value = this.getAttribute('data-adventure-id');
+                document.getElementById('editAdventureName').value = this.getAttribute('data-adventure-name');
+                document.getElementById('editAdventureAccessType').value = this.getAttribute('data-adventure-access-type');
+            });
+        });
+
+        // Delete adventure button
+        document.querySelectorAll('.delete-adventure-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const adventureId = this.getAttribute('data-adventure-id');
+                if (confirm('Are you sure you want to delete this adventure?')) {
+                    fetch(`/api/admin/adventures/${adventureId}`, { method: 'DELETE' })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.reload();
+                            } else {
+                                alert('Failed to delete adventure');
+                            }
+                        });
+                }
+            });
+        });
+
+        // Add single stage button
+        document.querySelectorAll('.add-stage-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const adventureId = this.getAttribute('data-adventure-id');
+                fetch(`/api/admin/adventures/${adventureId}/stages`, { method: 'POST' })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to add stage');
+                        }
+                    });
+            });
+        });
+
+        // Delete stage button
+        document.querySelectorAll('.delete-stage-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const stageId = this.getAttribute('data-stage-id');
+                if (confirm('Are you sure you want to delete this stage?')) {
+                    fetch(`/api/admin/stages/${stageId}`, { method: 'DELETE' })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.reload();
+                            } else {
+                                alert('Failed to delete stage');
+                            }
+                        });
+                }
+            });
+        });
+
+        // Add single scenario button
+        document.querySelectorAll('.add-scenario-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const stageId = this.getAttribute('data-stage-id');
+                fetch(`/api/admin/stages/${stageId}/scenarios`, { method: 'POST' })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.reload();
+                        } else {
+                            alert('Failed to add scenario');
+                        }
+                    });
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
