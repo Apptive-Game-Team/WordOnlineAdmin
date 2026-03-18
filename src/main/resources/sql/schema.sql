@@ -22,3 +22,19 @@ CREATE TABLE servers (
     type VARCHAR(10) NOT NULL,
     state VARCHAR(10) NOT NULL DEFAULT 'INACTIVE'
 );
+
+CREATE TABLE adventures (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(31) NOT NULL,
+    access_type VARCHAR(10) NOT NULL DEFAULT 'FREE'
+);
+
+CREATE TABLE stages (
+    id BIGSERIAL PRIMARY KEY,
+    adventure_id BIGINT REFERENCES adventures(id) ON DELETE CASCADE
+);
+
+CREATE TABLE scenarios (
+    id BIGSERIAL PRIMARY KEY,
+    stage_id BIGINT REFERENCES stages(id) ON DELETE CASCADE
+);
