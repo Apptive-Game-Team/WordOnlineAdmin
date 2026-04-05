@@ -24,6 +24,7 @@ public class DeployStatus {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Setter
     @Column(name = "deploy_type", nullable = false)
     private String deployType;
 

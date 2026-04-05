@@ -33,8 +33,8 @@ public class DeployStatusService {
     public void update(Long id, DeployStatusRequestDto requestDto) {
         DeployStatus deployStatus = deployStatusRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("DeployStatus not found"));
-        DeployStatus updated = new DeployStatus(deployStatus.getId(), requestDto.deployType(), requestDto.status());
-        deployStatusRepository.save(updated);
+        deployStatus.setDeployType(requestDto.deployType());
+        deployStatus.setStatus(requestDto.status());
     }
 
     public void delete(Long id) {
