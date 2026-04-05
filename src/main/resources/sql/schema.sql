@@ -38,3 +38,9 @@ CREATE TABLE scenarios (
     id BIGSERIAL PRIMARY KEY,
     stage_id BIGINT REFERENCES stages(id) ON DELETE CASCADE
 );
+
+CREATE TABLE deploy_status (
+    id BIGSERIAL PRIMARY KEY,
+    deploy_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL
+);
