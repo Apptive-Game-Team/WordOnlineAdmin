@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Balance Proposals</title>
+</head>
+
+<body>
+<div layout:fragment="content">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+            <div>
+                <h1>Balance Proposals</h1>
+                <p class="text-muted mb-0">Generate, review, approve, and apply profile-backed balance proposals.</p>
+            </div>
+            <button class="btn btn-primary" onclick="generateProposal()">Generate Proposal</button>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Proposal History</h2>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a th:each="proposal : ${proposals}"
+                           th:href="@{/admin/balance/proposals(proposalId=${proposal.id})}"
+                           class="list-group-item list-group-item-action"
+                           th:classappend="${selectedProposal != null && selectedProposal.id == proposal.id} ? 'active' : ''">
+                            <div class="d-flex justify-content-between">
+                                <strong th:text="'#' + ${proposal.id}"></strong>
+                                <span th:text="${proposal.status}"></span>
+                            </div>
+                            <div class="small" th:text="${proposal.simulationStatus}"></div>
+                            <div class="small" th:text="${#temporals.format(proposal.createdAt, 'yyyy-MM-dd HH:mm')}"></div>
+                        </a>
+                        <div th:if="${#lists.isEmpty(proposals)}" class="list-group-item text-muted">
+                            No proposals yet.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card" th:if="${selectedProposal != null}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="h4 mb-0" th:text="'Proposal #' + ${selectedProposal.id}"></h2>
+                            <small th:text="${selectedProposal.status} + ' / ' + ${selectedProposal.simulationStatus}"></small>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-success"
+                                    th:disabled="${selectedProposal.status.name() != 'DRAFT' || selectedProposal.simulationStatus.name() != 'SUCCEEDED'}"
+                                    th:onclick="'approveProposal(' + ${selectedProposal.id} + ')'">Approve</button>
+                            <button class="btn btn-outline-danger"
+                                    th:disabled="${selectedProposal.status.name() != 'DRAFT'}"
+                                    th:onclick="'rejectProposal(' + ${selectedProposal.id} + ')'">Reject</button>
+                            <button class="btn btn-success"
+                                    th:disabled="${selectedProposal.status.name() != 'APPROVED'}"
+                                    th:onclick="'applyProposal(' + ${selectedProposal.id} + ')'">Apply</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h3 class="h6">Analysis Window</h3>
+                                <p class="mb-1" th:text="${selectedProposal.analysisWindowDays} + ' days'"></p>
+                                <p class="small text-muted mb-0"
+                                   th:text="${#temporals.format(selectedProposal.analysisFrom, 'yyyy-MM-dd HH:mm')} + ' ~ ' + ${#temporals.format(selectedProposal.analysisTo, 'yyyy-MM-dd HH:mm')}"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h3 class="h6">Simulation</h3>
+                                <p class="mb-1" th:text="${selectedProposal.simulationBatchId != null ? selectedProposal.simulationBatchId : 'Not available'}"></p>
+                                <p class="small text-muted mb-0"
+                                   th:text="${selectedProposal.simulationProfile != null ? selectedProposal.simulationProfile.name : 'No simulation profile'}"></p>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" th:if="${selectedProposal.rejectionReason != null && !selectedProposal.rejectionReason.isBlank()}">
+                            <h3 class="h6">Rejection Reason</h3>
+                            <pre class="bg-light p-3 border rounded mb-0" th:text="${selectedProposal.rejectionReason}"></pre>
+                        </div>
+
+                        <div class="mb-3" th:if="${selectedProposal.simulationSummaryJson != null}">
+                            <h3 class="h6">Simulation Summary</h3>
+                            <pre class="bg-light p-3 border rounded mb-0" th:text="${selectedProposal.simulationSummaryJson}"></pre>
+                        </div>
+
+                        <h3 class="h6 mt-4">Proposal Items</h3>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                <tr>
+                                    <th>Magic</th>
+                                    <th>Card</th>
+                                    <th>Game Object</th>
+                                    <th>Parameter</th>
+                                    <th>Current</th>
+                                    <th>Proposed</th>
+                                    <th>Delta</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="item : ${selectedProposal.items}">
+                                    <td th:text="${item.magicName}"></td>
+                                    <td th:text="${item.cardName}"></td>
+                                    <td th:text="${item.gameObjectName}"></td>
+                                    <td th:text="${item.parameterName}"></td>
+                                    <td th:text="${#numbers.formatDecimal(item.currentValue, 1, 2)}"></td>
+                                    <td th:text="${#numbers.formatDecimal(item.proposedValue, 1, 2)}"></td>
+                                    <td th:text="${#numbers.formatDecimal(item.changeRate * 100, 1, 2)} + '%'"></td>
+                                </tr>
+                                <tr th:if="${#lists.isEmpty(selectedProposal.items)}">
+                                    <td colspan="7" class="text-muted">No tunable items matched the current rules.</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" th:if="${selectedProposal == null}">
+                    <div class="card-body text-muted">
+                        Generate a proposal to start the workflow.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function generateProposal() {
+            fetch('/api/admin/balance/proposals/generate', { method: 'POST' })
+                .then(handleResponse)
+                .then(proposal => window.location.href = `/admin/balance/proposals?proposalId=${proposal.id}`)
+                .catch(showError);
+        }
+
+        function approveProposal(id) {
+            fetch(`/api/admin/balance/proposals/${id}/approve`, { method: 'POST' })
+                .then(handleResponse)
+                .then(() => window.location.reload())
+                .catch(showError);
+        }
+
+        function applyProposal(id) {
+            fetch(`/api/admin/balance/proposals/${id}/apply`, { method: 'POST' })
+                .then(handleResponse)
+                .then(() => window.location.reload())
+                .catch(showError);
+        }
+
+        function rejectProposal(id) {
+            const reason = window.prompt('Enter a rejection reason (optional):', '') ?? '';
+            fetch(`/api/admin/balance/proposals/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason })
+            })
+                .then(handleResponse)
+                .then(() => window.location.reload())
+                .catch(showError);
+        }
+
+        function handleResponse(response) {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text || 'Request failed');
+                });
+            }
+            return response.json();
+        }
+
+        function showError(error) {
+            alert(error.message || 'Request failed');
+        }
+    </script>
+</div>
+</body>
+</html>

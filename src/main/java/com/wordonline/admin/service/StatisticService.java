@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
@@ -14,6 +15,7 @@ import com.wordonline.admin.entity.statistic.GameType;
 import com.wordonline.admin.entity.statistic.StatisticGame;
 import com.wordonline.admin.entity.statistic.StatisticGameCard;
 import com.wordonline.admin.entity.statistic.StatisticGameMagic;
+import com.wordonline.admin.entity.statistic.StatisticRunType;
 import com.wordonline.admin.repository.statistic.StatisticGameRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,14 @@ import lombok.RequiredArgsConstructor;
 public class StatisticService {
 
     private final StatisticGameRepository statisticGameRepository;
+
+    public List<StatisticGame> getSimulationStatisticGames(UUID simulationBatchId) {
+        return statisticGameRepository.findBySimulationBatchId(simulationBatchId);
+    }
+
+    public List<StatisticGame> getLiveStatisticGames(GameType gameType, LocalDateTime fromDate) {
+        return getStatisticGames(gameType, fromDate);
+    }
 
     public Map<Card, Integer> calculateCardWinCounts() {
         return calculateCardWinCounts(null, null);
@@ -327,14 +337,18 @@ public class StatisticService {
     }
 
     private List<StatisticGame> getStatisticGames(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> games;
         if (gameType == null && fromDate == null) {
-            return statisticGameRepository.findAll();
+            games = statisticGameRepository.findAll();
         } else if (gameType == null) {
-            return statisticGameRepository.findByCreatedAtAfter(fromDate);
+            games = statisticGameRepository.findByCreatedAtAfter(fromDate);
         } else if (fromDate == null) {
-            return statisticGameRepository.findByGameType(gameType);
+            games = statisticGameRepository.findByGameType(gameType);
         } else {
-            return statisticGameRepository.findByGameTypeAndCreatedAtAfter(gameType, fromDate);
+            games = statisticGameRepository.findByGameTypeAndCreatedAtAfter(gameType, fromDate);
         }
+        return games.stream()
+                .filter(statisticGame -> statisticGame.getRunType() == null || statisticGame.getRunType() == StatisticRunType.LIVE)
+                .toList();
     }
 }

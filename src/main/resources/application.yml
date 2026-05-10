@@ -24,3 +24,37 @@ spring:
       hibernate:
         show_sql: true
         format_sql: true
+
+balance:
+  analysis-window-days: 14
+  min-matches: 100
+  target-win-rate-min: 0.48
+  target-win-rate-max: 0.52
+  max-change-rate: 0.10
+  max-parameter-edits-per-magic: 3
+  tunable-tag-name: BALANCE_TUNABLE
+  simulation-script-path: scripts/run-balance-simulation.sh
+  simulation-runs-per-matchup: 20
+  simulation-matchup-set: default
+  parameter-rules:
+    - parameter-name: damage
+      power-direction: HIGHER_IS_STRONGER
+      priority: 10
+    - parameter-name: hp
+      power-direction: HIGHER_IS_STRONGER
+      priority: 20
+    - parameter-name: speed
+      power-direction: HIGHER_IS_STRONGER
+      priority: 30
+    - parameter-name: duration
+      power-direction: HIGHER_IS_STRONGER
+      priority: 40
+    - parameter-name: range
+      power-direction: HIGHER_IS_STRONGER
+      priority: 50
+    - parameter-name: attack_range
+      power-direction: HIGHER_IS_STRONGER
+      priority: 60
+    - parameter-name: attack_interval
+      power-direction: LOWER_IS_STRONGER
+      priority: 70
