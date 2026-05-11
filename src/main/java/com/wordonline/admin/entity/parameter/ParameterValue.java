@@ -29,8 +29,16 @@ public class ParameterValue {
     @JoinColumn(name = "parameter_id")
     private Parameter parameter;
 
+    @ManyToOne
+    @JoinColumn(name = "parameter_profile_id")
+    private ParameterProfile parameterProfile;
+
     public ParameterValue(Double value, GameObject gameObject, Parameter parameter) {
-        this(null, value, gameObject, parameter);
+        this(null, value, gameObject, parameter, null);
         gameObject.addParameterValue(this);
+    }
+
+    public ParameterValue(Double value, GameObject gameObject, Parameter parameter, ParameterProfile parameterProfile) {
+        this(null, value, gameObject, parameter, parameterProfile);
     }
 }

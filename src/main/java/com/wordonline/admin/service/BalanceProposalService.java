@@ -32,7 +32,6 @@ import com.wordonline.admin.entity.magic.MagicCard;
 import com.wordonline.admin.entity.parameter.GameObject;
 import com.wordonline.admin.entity.parameter.Parameter;
 import com.wordonline.admin.entity.parameter.ParameterProfile;
-import com.wordonline.admin.entity.parameter.ParameterProfileValue;
 import com.wordonline.admin.entity.parameter.ParameterValue;
 import com.wordonline.admin.entity.statistic.StatisticGame;
 import com.wordonline.admin.entity.statistic.StatisticGameCard;
@@ -40,7 +39,6 @@ import com.wordonline.admin.entity.statistic.StatisticGameMagic;
 import com.wordonline.admin.repository.balance.BalanceProposalRepository;
 import com.wordonline.admin.repository.magic.MagicRepository;
 import com.wordonline.admin.repository.parameter.ParameterProfileRepository;
-import com.wordonline.admin.repository.parameter.ParameterProfileValueRepository;
 import com.wordonline.admin.repository.parameter.ParameterValueRepository;
 
 import jakarta.persistence.EntityManager;
@@ -54,7 +52,6 @@ public class BalanceProposalService {
     private final BalanceProposalRepository balanceProposalRepository;
     private final MagicRepository magicRepository;
     private final ParameterProfileRepository parameterProfileRepository;
-    private final ParameterProfileValueRepository parameterProfileValueRepository;
     private final ParameterValueRepository parameterValueRepository;
     private final StatisticService statisticService;
     private final BalanceSimulationService balanceSimulationService;
@@ -259,15 +256,15 @@ public class BalanceProposalService {
                 false
         ));
 
-        List<ParameterProfileValue> overrides = proposal.getItems().stream()
-                .map(item -> new ParameterProfileValue(
-                        simulationProfile,
+        List<ParameterValue> overrides = proposal.getItems().stream()
+                .map(item -> new ParameterValue(
+                        item.getProposedValue(),
                         entityManager.getReference(GameObject.class, item.getGameObjectId()),
                         entityManager.getReference(Parameter.class, item.getParameterId()),
-                        item.getProposedValue()
+                        simulationProfile
                 ))
                 .toList();
-        parameterProfileValueRepository.saveAll(overrides);
+        parameterValueRepository.saveAll(overrides);
         return simulationProfile;
     }
 
@@ -321,6 +318,7 @@ public class BalanceProposalService {
                 .filter(card -> hasTunableTag(card.getGameObject()))
                 .sorted(Comparator.comparingInt((Card card) -> cardUsageCounts.getOrDefault(card.getId(), 0)).reversed())
                 .flatMap(card -> card.getGameObject().getParameterValues().stream()
+                        .filter(this::isDefaultParameterValue)
                         .filter(parameterValue -> rulesByName.containsKey(parameterValue.getParameter().getName()))
                         .map(parameterValue -> new CandidateParameter(
                                 card,
@@ -331,6 +329,11 @@ public class BalanceProposalService {
                 .sorted(Comparator.comparingInt((CandidateParameter candidate) -> candidate.rule().getPriority())
                         .thenComparing(candidate -> candidate.parameterValue().getParameter().getName()))
                 .toList();
+    }
+
+    private boolean isDefaultParameterValue(ParameterValue parameterValue) {
+        ParameterProfile profile = parameterValue.getParameterProfile();
+        return profile == null || profile.isDefault();
     }
 
     private boolean hasTunableTag(GameObject gameObject) {

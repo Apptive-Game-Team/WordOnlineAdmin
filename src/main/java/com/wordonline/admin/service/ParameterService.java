@@ -3,9 +3,11 @@ package com.wordonline.admin.service;
 import com.wordonline.admin.dto.*;
 import com.wordonline.admin.entity.parameter.GameObject;
 import com.wordonline.admin.entity.parameter.Parameter;
+import com.wordonline.admin.entity.parameter.ParameterProfile;
 import com.wordonline.admin.entity.parameter.ParameterValue;
 import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
+import com.wordonline.admin.repository.parameter.ParameterProfileRepository;
 import com.wordonline.admin.repository.parameter.ParameterValueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class ParameterService {
     private final GameObjectRepository gameObjectRepository;
     private final ParameterValueRepository parameterValueRepository;
     private final ParameterRepository parameterRepository;
+    private final ParameterProfileRepository parameterProfileRepository;
 
     public void createParameter(String name) {
         Parameter parameter = new Parameter(name);
@@ -57,7 +60,7 @@ public class ParameterService {
         Parameter parameter = parameterRepository.findById(parameterId)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter"));
 
-        ParameterValue parameterValue = new ParameterValue(value, gameObject, parameter);
+        ParameterValue parameterValue = new ParameterValue(value, gameObject, parameter, getDefaultProfile());
         parameterValueRepository.save(parameterValue);
     }
 
@@ -105,8 +108,10 @@ public class ParameterService {
         Parameter parameter = parameterRepository.findByName(parameterName)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter name: " + parameterName));
 
-        ParameterValue parameterValue = parameterValueRepository.findByGameObjectAndParameter(gameObject, parameter)
-                .orElse(new ParameterValue(value, gameObject, parameter));
+        ParameterProfile defaultProfile = getDefaultProfile();
+        ParameterValue parameterValue = parameterValueRepository
+                .findByParameterProfileIdAndGameObjectAndParameter(defaultProfile.getId(), gameObject, parameter)
+                .orElse(new ParameterValue(value, gameObject, parameter, defaultProfile));
 
         parameterValue.setValue(value);
         parameterValueRepository.save(parameterValue);
@@ -123,5 +128,10 @@ public class ParameterService {
                                     )
                         ).toList()
         );
+    }
+
+    private ParameterProfile getDefaultProfile() {
+        return parameterProfileRepository.findByIsDefaultTrue()
+                .orElseThrow(() -> new IllegalStateException("Default parameter profile not found"));
     }
 }

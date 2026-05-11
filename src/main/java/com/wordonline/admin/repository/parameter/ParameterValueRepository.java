@@ -9,4 +9,5 @@ import java.util.Optional;
 
 public interface ParameterValueRepository extends JpaRepository<ParameterValue, Long> {
     Optional<ParameterValue> findByGameObjectAndParameter(GameObject gameObject, Parameter parameter);
+    Optional<ParameterValue> findByParameterProfileIdAndGameObjectAndParameter(Long parameterProfileId, GameObject gameObject, Parameter parameter);
 }
