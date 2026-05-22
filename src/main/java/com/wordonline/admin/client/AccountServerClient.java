@@ -20,11 +20,12 @@ public class AccountServerClient {
     private RestClient restClient;
 
     private void init() {
-        Server accountServer = serverRepository.findAllByTypeAndState(ServerType.ACCOUNT, ServerState.ACTIVE).getFirst();
-        if (accountServer == null) {
-            throw new RuntimeException(
-                    "Account server not found in database. Please ensure a server with type 'ACCOUNT' is configured.");
-        }
+        Server accountServer = serverRepository.findAllByTypeAndState(ServerType.ACCOUNT, ServerState.ACTIVE)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Account server not found in database. Please configure an ACTIVE ACCOUNT server."
+                ));
         restClient = builder.baseUrl(accountServer.getUrl())
                 .build();
         log.info("Account server client initialized with URL: {}", accountServer.getUrl());
@@ -46,14 +47,17 @@ public class AccountServerClient {
 
             if (response == null || response.getJwt() == null) {
                 log.error("Login failed for user: {} - empty response", username);
-                throw new RuntimeException("Login failed - empty response from server");
+                throw new IllegalStateException("Account server returned an empty login response");
             }
 
             log.info("Login successful for user: {}", username);
             return response.getJwt();
         } catch (Exception e) {
             log.error("Login failed for user: {}", username, e);
-            throw new RuntimeException("Invalid username or password");
+            if (e instanceof IllegalStateException) {
+                throw e;
+            }
+            throw new RuntimeException("Login request to account server failed", e);
         }
     }
 }
