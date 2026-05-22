@@ -12,6 +12,19 @@
 <div layout:fragment="content">
     <div class="container">
         <h1>Adventure Management</h1>
+        <form class="form-inline mt-3 mb-3" method="get" action="/admin/adventure">
+            <label class="mr-2" for="db-select">View DB</label>
+            <select id="db-select" name="db" class="form-control mr-2" onchange="this.form.submit()">
+                <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
+                <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+            </select>
+            <button type="button" id="sync-adventure-to-secondary" class="btn btn-outline-secondary mr-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
+            <button type="button" id="sync-adventure-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
+        </form>
+        <div class="form-group mt-3">
+            <label for="adventure-search">Search</label>
+            <input type="text" class="form-control" id="adventure-search" placeholder="Search adventures, stages, scenarios">
+        </div>
 
         <!-- Adventures Section -->
         <div class="card mt-4">
@@ -33,7 +46,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr th:each="adventure : ${adventures}">
+                    <tr th:each="adventure : ${adventures}" class="adventure-search-item">
                         <td th:text="${adventure.id}"></td>
                         <td th:text="${adventure.name}"></td>
                         <td th:text="${adventure.accessType}"></td>
@@ -64,7 +77,7 @@
         </div>
 
         <!-- Stages & Scenarios Section -->
-        <div th:each="adventure : ${adventures}" class="card mt-4">
+        <div th:each="adventure : ${adventures}" class="card mt-4 adventure-search-item">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4>
                     Adventure #<span th:text="${adventure.id}"></span>:
@@ -224,14 +237,33 @@
         </div>
     </div>
 
-<script>
+<script th:inline="javascript">
+    const selectedDb = /*[[${selectedDb}]]*/ 'primary';
+
+    function withDb(url) {
+        return `${url}${url.includes('?') ? '&' : '?'}db=${selectedDb}`;
+    }
+
+    async function postSync(url) {
+        try {
+            const response = await fetch(url, { method: 'POST' });
+            const message = await response.text();
+            alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
+            if (response.ok) {
+                window.location.reload();
+            }
+        } catch (error) {
+            alert(`Sync failed: ${error.message}`);
+        }
+    }
+
     function submitCreateAdventure() {
         const form = document.getElementById('createAdventureForm');
         const data = {
             name: form.querySelector('#createAdventureName').value,
             accessType: form.querySelector('#createAdventureAccessType').value
         };
-        fetch('/api/admin/adventures', {
+        fetch(withDb('/api/admin/adventures'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -250,7 +282,7 @@
             name: document.getElementById('editAdventureName').value,
             accessType: document.getElementById('editAdventureAccessType').value
         };
-        fetch(`/api/admin/adventures/${adventureId}`, {
+        fetch(withDb(`/api/admin/adventures/${adventureId}`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -274,7 +306,7 @@
         const adventureId = document.getElementById('bulkStagesAdventureId').value;
         const stageCount = parseInt(document.getElementById('bulkStageCount').value);
         const scenarioCount = parseInt(document.getElementById('bulkScenarioCount').value);
-        fetch(`/api/admin/adventures/${adventureId}/stages/bulk`, {
+        fetch(withDb(`/api/admin/adventures/${adventureId}/stages/bulk`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ stageCount: stageCount, scenarioCount: scenarioCount })
@@ -297,7 +329,7 @@
     function submitBulkCreateScenarios() {
         const stageId = document.getElementById('bulkScenariosStageId').value;
         const count = parseInt(document.getElementById('bulkScenarioCountForStage').value);
-        fetch(`/api/admin/stages/${stageId}/scenarios/bulk`, {
+        fetch(withDb(`/api/admin/stages/${stageId}/scenarios/bulk`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ count: count })
@@ -312,6 +344,25 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         // Edit adventure button
+        document.getElementById('adventure-search').addEventListener('input', function(event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll('.adventure-search-item').forEach(item => {
+                item.style.display = item.innerText.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+
+        document.getElementById('sync-adventure-to-secondary').addEventListener('click', function() {
+            if (confirm('Sync prod adventures to dev DB?')) {
+                postSync('/api/admin/adventures/sync-to-secondary');
+            }
+        });
+
+        document.getElementById('sync-adventure-to-primary').addEventListener('click', function() {
+            if (confirm('Sync dev adventures to prod DB?')) {
+                postSync('/api/admin/adventures/sync-to-primary');
+            }
+        });
+
         document.querySelectorAll('.edit-adventure-btn').forEach(button => {
             button.addEventListener('click', function () {
                 document.getElementById('editAdventureId').value = this.getAttribute('data-adventure-id');
@@ -325,7 +376,7 @@
             button.addEventListener('click', function () {
                 const adventureId = this.getAttribute('data-adventure-id');
                 if (confirm('Are you sure you want to delete this adventure?')) {
-                    fetch(`/api/admin/adventures/${adventureId}`, { method: 'DELETE' })
+                    fetch(withDb(`/api/admin/adventures/${adventureId}`), { method: 'DELETE' })
                         .then(response => {
                             if (response.ok) {
                                 window.location.reload();
@@ -341,7 +392,7 @@
         document.querySelectorAll('.add-stage-btn').forEach(button => {
             button.addEventListener('click', function () {
                 const adventureId = this.getAttribute('data-adventure-id');
-                fetch(`/api/admin/adventures/${adventureId}/stages`, { method: 'POST' })
+                fetch(withDb(`/api/admin/adventures/${adventureId}/stages`), { method: 'POST' })
                     .then(response => {
                         if (response.ok) {
                             window.location.reload();
@@ -357,7 +408,7 @@
             button.addEventListener('click', function () {
                 const stageId = this.getAttribute('data-stage-id');
                 if (confirm('Are you sure you want to delete this stage?')) {
-                    fetch(`/api/admin/stages/${stageId}`, { method: 'DELETE' })
+                    fetch(withDb(`/api/admin/stages/${stageId}`), { method: 'DELETE' })
                         .then(response => {
                             if (response.ok) {
                                 window.location.reload();
@@ -373,7 +424,7 @@
         document.querySelectorAll('.add-scenario-btn').forEach(button => {
             button.addEventListener('click', function () {
                 const stageId = this.getAttribute('data-stage-id');
-                fetch(`/api/admin/stages/${stageId}/scenarios`, { method: 'POST' })
+                fetch(withDb(`/api/admin/stages/${stageId}/scenarios`), { method: 'POST' })
                     .then(response => {
                         if (response.ok) {
                             window.location.reload();

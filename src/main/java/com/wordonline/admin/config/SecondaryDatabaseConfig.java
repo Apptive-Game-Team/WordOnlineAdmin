@@ -33,6 +33,14 @@ public class SecondaryDatabaseConfig {
         return properties.initializeDataSourceBuilder().build();
     }
 
+    @Bean
+    @Primary
+    public JdbcTemplate jdbcTemplate(
+            @Qualifier("dataSource") DataSource dataSource
+    ) {
+        return new JdbcTemplate(dataSource);
+    }
+
     @Bean(name = "transactionManager")
     @Primary
     public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
