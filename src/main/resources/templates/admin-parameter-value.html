@@ -12,6 +12,15 @@
 <div layout:fragment="content">
     <div class="container">
         <h1 th:text="|Parameter Values for ${gameObject.name}|"></h1>
+        <form class="form-inline mt-3 mb-3" method="get" th:action="@{|/admin/game-object/${gameObject.id}|}">
+            <label class="mr-2" for="db-select">View DB</label>
+            <select id="db-select" name="db" class="form-control mr-2" onchange="this.form.submit()">
+                <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
+                <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+            </select>
+            <button type="button" id="sync-values-to-secondary" class="btn btn-outline-secondary mr-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
+            <button type="button" id="sync-values-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
+        </form>
 
         <!-- ParameterValue Management -->
         <div class="card mt-4">
@@ -33,6 +42,11 @@
                     <button type="submit" class="btn btn-primary mb-2">Add Parameter Value</button>
                 </form>
 
+                <div class="form-group mt-3">
+                    <label for="parameter-value-search">Search</label>
+                    <input type="text" class="form-control" id="parameter-value-search" placeholder="Search by id, parameter, or value">
+                </div>
+
                 <table class="table table-striped mt-3">
                     <thead>
                     <tr>
@@ -42,10 +56,10 @@
                         <th>Actions</th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="parameter-value-table-body">
                     <tr th:each="paramValue : ${gameObject.parameterValues}">
                         <td th:text="${paramValue.id}"></td>
-                        <td th:text="${paramValue.parameter.name}"></td>
+                        <td th:text="${paramValue.parameterName}"></td>
                         <td th:text="${paramValue.value}"></td>
                         <td>
                             <form class="d-inline update-form">
@@ -64,7 +78,7 @@
             </div>
         </div>
         <!-- Tag Management -->
-        <div class="card mt-4">
+        <div class="card mt-4" th:if="${selectedDb == 'primary'}">
             <div class="card-header">
                 <h3 th:text="|Tags for ${gameObject.name}|"></h3>
             </div>
@@ -88,7 +102,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <tr th:each="gameObjectTag : ${gameObject.gameObjectTags}">
+                    <tr th:each="gameObjectTag : ${gameObjectTags}">
                         <td th:text="${gameObjectTag.tag.id}"></td>
                         <td th:text="${gameObjectTag.tag.name}"></td>
                         <td>
@@ -107,6 +121,34 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         const gameObjectId = /*[[${gameObject.id}]]*/ 0;
+        const selectedDb = /*[[${selectedDb}]]*/ 'primary';
+
+        function getRowSearchText(row) {
+            const inputText = Array.from(row.querySelectorAll('input, select, textarea'))
+                .map(input => input.value || '')
+                .join(' ');
+            return `${row.innerText} ${inputText}`.toLowerCase();
+        }
+
+        document.getElementById('parameter-value-search').addEventListener('input', function(event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll('#parameter-value-table-body tr').forEach(row => {
+                row.style.display = getRowSearchText(row).includes(query) ? '' : 'none';
+            });
+        });
+
+        async function postSync(url) {
+            try {
+                const response = await fetch(url, { method: 'POST' });
+                const message = await response.text();
+                alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert(`Sync failed: ${error.message}`);
+            }
+        }
 
         document.getElementById('addParameterValueForm').addEventListener('submit', function(event) {
             event.preventDefault();
@@ -117,7 +159,7 @@
                 value: formData.get('value')
             };
 
-            fetch(`/api/admin/game-objects/${gameObjectId}/parameter-values`, {
+            fetch(`/api/admin/game-objects/${gameObjectId}/parameter-values?db=${selectedDb}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -139,7 +181,7 @@
                     value: formData.get('value')
                 };
 
-                fetch(`/api/admin/parameter-values/${id}`,
+                fetch(`/api/admin/parameter-values/${id}?db=${selectedDb}`,
                     {
                     method: 'PATCH',
                     headers: {
@@ -160,7 +202,7 @@
                 const formData = new FormData(form);
                 const id = formData.get('id');
 
-                fetch(`/api/admin/parameter-values/${id}`,
+                fetch(`/api/admin/parameter-values/${id}?db=${selectedDb}`,
                     {
                     method: 'DELETE'
                 }).then(response => {
@@ -171,7 +213,9 @@
             });
         });
 
-        document.getElementById('addTagForm').addEventListener('submit', function(event) {
+        const addTagForm = document.getElementById('addTagForm');
+        if (addTagForm) {
+            addTagForm.addEventListener('submit', function(event) {
             event.preventDefault();
             const form = event.target;
             const formData = new FormData(form);
@@ -188,7 +232,8 @@
                     window.location.reload();
                 }
             });
-        });
+            });
+        }
 
         document.querySelectorAll('.remove-tag-form').forEach(form => {
             form.addEventListener('submit', function(event) {
@@ -204,6 +249,20 @@
                     }
                 });
             });
+        });
+
+        document.getElementById('sync-values-to-secondary').addEventListener('click', function() {
+            if (!confirm('Sync prod parameter values to dev DB?')) {
+                return;
+            }
+            postSync('/api/admin/parameter-values/sync-to-secondary');
+        });
+
+        document.getElementById('sync-values-to-primary').addEventListener('click', function() {
+            if (!confirm('Sync dev parameter values to prod DB?')) {
+                return;
+            }
+            postSync('/api/admin/parameter-values/sync-to-primary');
         });
         /*]]>*/
     </script>

@@ -27,6 +27,11 @@
                     <button type="submit" class="btn btn-primary mb-2 ml-2">Create GameObject</button>
                 </form>
 
+                <div class="form-group mt-3">
+                    <label for="game-object-search">Search</label>
+                    <input type="text" class="form-control" id="game-object-search" placeholder="Search by id or name">
+                </div>
+
                 <table class="table table-striped mt-3">
                     <thead>
                     <tr>
@@ -35,7 +40,7 @@
                         <th>Actions</th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="game-object-table-body">
                     <tr th:each="gameObject : ${gameObjects}">
                         <td th:text="${gameObject.id}"></td>
                         <td th:text="${gameObject.name}"></td>
@@ -59,6 +64,20 @@
     </div>
 
     <script>
+        function getRowSearchText(row) {
+            const inputText = Array.from(row.querySelectorAll('input, select, textarea'))
+                .map(input => input.value || '')
+                .join(' ');
+            return `${row.innerText} ${inputText}`.toLowerCase();
+        }
+
+        document.getElementById('game-object-search').addEventListener('input', function(event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll('#game-object-table-body tr').forEach(row => {
+                row.style.display = getRowSearchText(row).includes(query) ? '' : 'none';
+            });
+        });
+
         document.getElementById('createGameObjectForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const form = event.target;

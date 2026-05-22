@@ -24,10 +24,14 @@ public class SpreadSheetController {
     @GetMapping("/game-objects")
     public String getGameObjects(
             @RequestParam(value = "tags", required = false) List<String> tags,
+            @RequestParam(value = "db", defaultValue = "primary") String db,
             Model model
     ) {
-        model.addAttribute("gameObjects", spreadSheetService.getGameObjects(tags));
+        boolean secondary = "secondary".equalsIgnoreCase(db);
+        model.addAttribute("gameObjects", spreadSheetService.getGameObjects(tags, secondary));
         model.addAttribute("allTags", tagRepository.findAll());
+        model.addAttribute("selectedDb", secondary ? "secondary" : "primary");
+        model.addAttribute("secondaryDatabaseEnabled", spreadSheetService.hasSecondaryDatabase());
         return "admin-spreadsheet";
     }
 }
