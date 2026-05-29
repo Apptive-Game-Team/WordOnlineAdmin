@@ -12,6 +12,15 @@
 <div layout:fragment="content">
     <div class="container">
         <h1>Parameter Management</h1>
+        <form class="form-inline mt-3 mb-3" method="get" action="/admin/parameter">
+            <label class="mr-2" for="db-select">View DB</label>
+            <select id="db-select" name="db" class="form-control mr-2" onchange="this.form.submit()">
+                <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
+                <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+            </select>
+            <button type="button" id="sync-to-secondary" class="btn btn-outline-secondary mr-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
+            <button type="button" id="sync-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
+        </form>
         <!-- Parameter Management -->
         <div class="card mt-4">
             <div class="card-header">
@@ -26,6 +35,11 @@
                     <button type="submit" class="btn btn-primary mb-2 ml-2">Create Parameter</button>
                 </form>
 
+                <div class="form-group mt-3">
+                    <label for="parameter-search">Search</label>
+                    <input type="text" class="form-control" id="parameter-search" placeholder="Search by id or name">
+                </div>
+
                 <table class="table table-striped mt-3">
                     <thead>
                     <tr>
@@ -34,7 +48,7 @@
                         <th>Actions</th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="parameter-table-body">
                     <tr th:each="parameter : ${parameters}">
                         <td th:text="${parameter.id}"></td>
                         <td th:text="${parameter.name}"></td>
@@ -56,7 +70,36 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+        const selectedDb = /*[[${selectedDb}]]*/ 'primary';
+
+        function getRowSearchText(row) {
+            const inputText = Array.from(row.querySelectorAll('input, select, textarea'))
+                .map(input => input.value || '')
+                .join(' ');
+            return `${row.innerText} ${inputText}`.toLowerCase();
+        }
+
+        document.getElementById('parameter-search').addEventListener('input', function(event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll('#parameter-table-body tr').forEach(row => {
+                row.style.display = getRowSearchText(row).includes(query) ? '' : 'none';
+            });
+        });
+
+        async function postSync(url) {
+            try {
+                const response = await fetch(url, { method: 'POST' });
+                const message = await response.text();
+                alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert(`Sync failed: ${error.message}`);
+            }
+        }
+
         document.getElementById('createParameterForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const form = event.target;
@@ -65,7 +108,7 @@
                 name: formData.get('name')
             };
 
-            fetch('/api/admin/parameters', {
+            fetch(`/api/admin/parameters?db=${selectedDb}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -87,7 +130,7 @@
                     name: formData.get('name')
                 };
 
-                fetch(`/api/admin/parameters/${id}`, {
+                fetch(`/api/admin/parameters/${id}?db=${selectedDb}`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json'
@@ -107,7 +150,7 @@
                 const formData = new FormData(form);
                 const id = formData.get('id');
 
-                fetch(`/api/admin/parameters/${id}`, {
+                fetch(`/api/admin/parameters/${id}?db=${selectedDb}`, {
                     method: 'DELETE'
                 }).then(response => {
                     if (response.ok) {
@@ -115,6 +158,20 @@
                     }
                 });
             });
+        });
+
+        document.getElementById('sync-to-secondary').addEventListener('click', function() {
+            if (!confirm('Sync prod parameters to dev DB?')) {
+                return;
+            }
+            postSync('/api/admin/parameters/sync-to-secondary');
+        });
+
+        document.getElementById('sync-to-primary').addEventListener('click', function() {
+            if (!confirm('Sync dev parameters to prod DB?')) {
+                return;
+            }
+            postSync('/api/admin/parameters/sync-to-primary');
         });
     </script>
 </div>

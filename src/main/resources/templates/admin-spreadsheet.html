@@ -52,8 +52,21 @@
 
         <form class="form mb-3">
             <div class="form-group">
+                <label for="db-select" class="mr-2">View DB:</label>
+                <select id="db-select" name="db" class="form-control d-inline-block w-auto">
+                    <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
+                    <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                </select>
+                <button type="button" id="sync-spreadsheet-to-secondary" class="btn btn-outline-secondary ml-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
+                <button type="button" id="sync-spreadsheet-to-primary" class="btn btn-outline-secondary ml-2" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
+            </div>
+            <div class="form-group">
                 <label for="tags-input" class="mr-2">Filter by Tags:</label>
                 <input type="text" class="form-control" id="tags-input" name="tags" th:value="${param.tags}" placeholder="e.g., tag1,tag2">
+            </div>
+            <div class="form-group">
+                <label for="spreadsheet-search" class="mr-2">Search:</label>
+                <input type="text" class="form-control" id="spreadsheet-search" placeholder="Search by name or value">
             </div>
             <div class="form-group mt-2">
                 <div class="form-check form-check-inline" th:each="tag : ${allTags}">
@@ -85,9 +98,9 @@
                     <th>magic_id</th>
                 </tr>
                 </thead>
-                <tbody>
+                <tbody id="spreadsheet-table-body">
                 <tr th:each="gameObject : ${gameObjects}" th:attr="data-game-object-id=${gameObject.id}">
-                    <td><a th:href="@{|/admin/game-object/${gameObject.id}|}" th:text="${gameObject.name} ?: 'N/A'"></a></td>
+                    <td><a th:href="@{|/admin/game-object/${gameObject.id}?db=${selectedDb}|}" th:text="${gameObject.name} ?: 'N/A'"></a></td>
                     <td th:text="${gameObject.hpPerMana} ? ${#numbers.formatDecimal(gameObject.hpPerMana, 1, 2)} : 'N/A'"></td>
                     <td th:text="${gameObject.damagePerSecond} ? ${#numbers.formatDecimal(gameObject.damagePerSecond, 1, 2)} : 'N/A'"></td>
                     <td th:text="${gameObject.damagePerSecondPerMana} ? ${#numbers.formatDecimal(gameObject.damagePerSecondPerMana, 1, 2)} : 'N/A'"></td>
@@ -108,10 +121,39 @@
         <button id="save-changes" class="btn btn-success">Save Changes</button>
     </div>
 
-    <script>
+    <script th:inline="javascript">
         document.addEventListener('DOMContentLoaded', function() {
+            const selectedDb = /*[[${selectedDb}]]*/ 'primary';
             const tagsInput = document.getElementById('tags-input');
             const checkboxes = document.querySelectorAll('.tag-checkbox');
+            const spreadsheetSearch = document.getElementById('spreadsheet-search');
+
+            function getRowSearchText(row) {
+                const inputText = Array.from(row.querySelectorAll('input, select, textarea'))
+                    .map(input => input.value || '')
+                    .join(' ');
+                return `${row.innerText} ${inputText}`.toLowerCase();
+            }
+
+            spreadsheetSearch.addEventListener('input', function(event) {
+                const query = event.target.value.trim().toLowerCase();
+                document.querySelectorAll('#spreadsheet-table-body tr').forEach(row => {
+                    row.style.display = getRowSearchText(row).includes(query) ? '' : 'none';
+                });
+            });
+
+            async function postSync(url) {
+                try {
+                    const response = await fetch(url, { method: 'POST' });
+                    const message = await response.text();
+                    alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    alert(`Sync failed: ${error.message}`);
+                }
+            }
 
             function updateInputFromCheckboxes() {
                 const checkedTags = Array.from(checkboxes)
@@ -165,12 +207,14 @@
                     return;
                 }
 
-                fetch('/api/admin/spread-sheets/game-objects', {
+                fetch(`/api/admin/spread-sheets/game-objects?db=${selectedDb}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(updates)
+                    body: JSON.stringify({
+                        updates: updates
+                    })
                 }).then(response => {
                     if (response.ok) {
                         alert('Changes saved successfully!');
@@ -179,6 +223,20 @@
                         alert('Error saving changes.');
                     }
                 });
+            });
+
+            document.getElementById('sync-spreadsheet-to-secondary').addEventListener('click', function() {
+                if (!confirm('Sync prod spreadsheet values to dev DB?')) {
+                    return;
+                }
+                postSync('/api/admin/spread-sheets/sync-to-secondary');
+            });
+
+            document.getElementById('sync-spreadsheet-to-primary').addEventListener('click', function() {
+                if (!confirm('Sync dev spreadsheet values to prod DB?')) {
+                    return;
+                }
+                postSync('/api/admin/spread-sheets/sync-to-primary');
             });
         });
     </script>

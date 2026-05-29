@@ -19,6 +19,19 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Magic Management</h1>
         </div>
+        <form class="form-inline mt-3 mb-3" method="get" action="/admin/magic">
+            <label class="mr-2" for="db-select">View DB</label>
+            <select id="db-select" name="db" class="form-control mr-2" onchange="this.form.submit()">
+                <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
+                <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+            </select>
+            <button type="button" id="sync-magic-to-secondary" class="btn btn-outline-secondary mr-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
+            <button type="button" id="sync-magic-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
+        </form>
+        <div class="form-group mt-3">
+            <label for="magic-search">Search</label>
+            <input type="text" class="form-control" id="magic-search" placeholder="Search by id, name, or card">
+        </div>
 
         <!-- Create New Magic -->
         <div class="card mb-4">
@@ -27,6 +40,7 @@
             </div>
             <div class="card-body">
                 <form th:action="@{/admin/magic/create}" method="post" class="form-inline">
+                    <input type="hidden" name="db" th:value="${selectedDb}">
                     <div class="form-group mb-2 flex-grow-1">
                         <label for="magicName" class="sr-only">Name</label>
                         <input type="text" class="form-control w-100" id="magicName" name="name" placeholder="Enter new magic name">
@@ -68,7 +82,7 @@
         </div>
 
         <!-- Magic List -->
-        <div th:each="magic : ${magics}" class="card mb-3" th:id="'magic-card-' + ${magic.id}">
+        <div th:each="magic : ${magics}" class="card mb-3 magic-search-item" th:id="'magic-card-' + ${magic.id}">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div class="form-check">
                     <input class="form-check-input magic-checkbox" type="checkbox" name="selectedMagicIds" th:value="${magic.id}" th:id="'magicCheckbox-' + ${magic.id}">
@@ -81,6 +95,7 @@
                 </div>
                 <div class="btn-toolbar">
                     <form th:action="@{/admin/magic/update}" method="post" class="form-inline d-inline-block mr-2">
+                        <input type="hidden" name="db" th:value="${selectedDb}">
                         <input type="hidden" name="id" th:value="${magic.id}">
                         <div class="input-group">
                             <input type="text" name="name" th:value="${magic.name}" class="form-control">
@@ -90,6 +105,7 @@
                         </div>
                     </form>
                     <form th:action="@{/admin/magic/delete}" method="post" class="d-inline-block">
+                        <input type="hidden" name="db" th:value="${selectedDb}">
                         <input type="hidden" name="id" th:value="${magic.id}">
                         <button type="submit" class="btn btn-danger">Delete Magic</button>
                     </form>
@@ -104,6 +120,7 @@
                             <li th:each="card : ${magic.cardDtos}" class="list-group-item d-flex justify-content-between align-items-center">
                                 <span th:text="${card.name}"></span>
                                 <form th:action="@{/admin/magic/remove-card}" method="post" class="d-inline">
+                                    <input type="hidden" name="db" th:value="${selectedDb}">
                                     <input type="hidden" name="magicId" th:value="${magic.id}">
                                     <input type="hidden" name="cardId" th:value="${card.id}">
                                     <button type="submit" class="btn btn-sm btn-warning">Remove</button>
@@ -119,6 +136,7 @@
                     <div class="col-md-6">
                         <h5>Add Card</h5>
                         <form th:action="@{/admin/magic/add-card}" method="post">
+                            <input type="hidden" name="db" th:value="${selectedDb}">
                             <input type="hidden" name="magicId" th:value="${magic.id}">
                             <div class="form-group">
                                 <select name="cardId" class="form-control">
@@ -134,7 +152,22 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+        const selectedDb = /*[[${selectedDb}]]*/ 'primary';
+
+        async function postSync(url) {
+            try {
+                const response = await fetch(url, { method: 'POST' });
+                const message = await response.text();
+                alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert(`Sync failed: ${error.message}`);
+            }
+        }
+
         // --- Scroll Position Restoration ---
         window.addEventListener('beforeunload', () => {
             localStorage.setItem('scrollPosition', window.scrollY);
@@ -161,6 +194,7 @@
             const form = document.createElement('form');
             form.method = 'post';
             form.action = action;
+            data.db = selectedDb;
 
             for (const key in data) {
                 if (data.hasOwnProperty(key)) {
@@ -192,6 +226,25 @@
             document.querySelectorAll('.magic-checkbox').forEach(checkbox => {
                 checkbox.checked = isChecked;
             });
+        });
+
+        document.getElementById('magic-search').addEventListener('input', function(event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll('.magic-search-item').forEach(item => {
+                item.style.display = item.innerText.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+
+        document.getElementById('sync-magic-to-secondary').addEventListener('click', function() {
+            if (confirm('Sync prod magic to dev DB?')) {
+                postSync('/admin/magic/sync-to-secondary');
+            }
+        });
+
+        document.getElementById('sync-magic-to-primary').addEventListener('click', function() {
+            if (confirm('Sync dev magic to prod DB?')) {
+                postSync('/admin/magic/sync-to-primary');
+            }
         });
 
         document.getElementById('bulkDeleteBtn').addEventListener('click', () => {

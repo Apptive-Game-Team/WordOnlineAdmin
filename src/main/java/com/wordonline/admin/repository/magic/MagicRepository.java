@@ -14,4 +14,10 @@ public interface MagicRepository extends JpaRepository<Magic, Long> {
             "magicCards.card"
     })
     List<Magic> findAllBy();
+
+    @EntityGraph(attributePaths = {
+            "magicCards",
+            "magicCards.card"
+    })
+    List<Magic> findAllByOrderByIdAsc();
 }

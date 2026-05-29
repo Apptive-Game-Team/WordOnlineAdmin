@@ -5,6 +5,10 @@ word-online:
   jwt:
     public-key: ${JWT_PUBLIC_KEY}
     path: ${JWT_FILE_PATH}
+  secondary-datasource:
+    url: ${DEV_DATABASE_URL:}
+    username: ${DEV_DATABASE_USER:}
+    password: ${DEV_DATABASE_PW:}
 
 spring:
   application:

@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -21,11 +22,31 @@ public class SpreadSheetApiController {
 
     public record ParameterUpdateDto(Long gameObjectId, String parameterName, Double value) {}
 
+    public record BatchParameterUpdateRequest(
+            List<ParameterUpdateDto> updates,
+            Boolean syncSecondary
+    ) {}
+
     @PostMapping("/game-objects")
     public ResponseEntity<String> updateGameObjects(
-            @RequestBody List<ParameterUpdateDto> updates
+            @RequestBody BatchParameterUpdateRequest request,
+            @RequestParam(name = "db", defaultValue = "primary") String db
     ) {
-        spreadSheetService.batchUpdateParameters(updates);
+        spreadSheetService.batchUpdateParameters(
+                request.updates(),
+                "secondary".equalsIgnoreCase(db),
+                Boolean.TRUE.equals(request.syncSecondary())
+        );
         return ResponseEntity.ok("Changes saved successfully!");
+    }
+
+    @PostMapping("/sync-to-secondary")
+    public ResponseEntity<String> syncToSecondary() {
+        return ResponseEntity.ok(spreadSheetService.syncToSecondary());
+    }
+
+    @PostMapping("/sync-to-primary")
+    public ResponseEntity<String> syncToPrimary() {
+        return ResponseEntity.ok(spreadSheetService.syncToPrimary());
     }
 }

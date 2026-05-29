@@ -9,4 +9,6 @@ import com.wordonline.admin.entity.adventure.Stage;
 public interface StageRepository extends JpaRepository<Stage, Long> {
 
     List<Stage> findByAdventureId(Long adventureId);
+
+    List<Stage> findByAdventureIdOrderByIdAsc(Long adventureId);
 }

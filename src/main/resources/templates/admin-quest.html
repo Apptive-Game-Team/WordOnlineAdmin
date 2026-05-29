@@ -12,6 +12,15 @@
 <div layout:fragment="content">
     <div class="container">
         <h1>Quest Management</h1>
+        <form class="form-inline mt-3 mb-3" method="get" action="/admin/quest">
+            <label class="mr-2" for="db-select">View DB</label>
+            <select id="db-select" name="db" class="form-control mr-2" onchange="this.form.submit()">
+                <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
+                <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+            </select>
+            <button type="button" id="sync-quest-to-secondary" class="btn btn-outline-secondary mr-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
+            <button type="button" id="sync-quest-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
+        </form>
         <div class="card mt-4">
             <div class="card-header">
                 <h2>Quests</h2>
@@ -20,6 +29,10 @@
                 <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createQuestModal">
                     Create Quest
                 </button>
+                <div class="form-group mt-3">
+                    <label for="quest-search">Search</label>
+                    <input type="text" class="form-control" id="quest-search" placeholder="Search by id, checker, reward, or params">
+                </div>
 
                 <table class="table table-striped mt-3">
                     <thead>
@@ -32,7 +45,7 @@
                         <th>Actions</th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="quest-table-body">
                     <tr th:each="quest : ${quests}">
                         <td th:text="${quest.id}"></td>
                         <td th:text="${quest.progressChecker}"></td>
@@ -143,7 +156,26 @@
         </div>
     </div>
 
-<script>
+<script th:inline="javascript">
+        const selectedDb = /*[[${selectedDb}]]*/ 'primary';
+
+        function withDb(url) {
+            return `${url}${url.includes('?') ? '&' : '?'}db=${selectedDb}`;
+        }
+
+        async function postSync(url) {
+            try {
+                const response = await fetch(url, { method: 'POST' });
+                const message = await response.text();
+                alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert(`Sync failed: ${error.message}`);
+            }
+        }
+
         function addRewardParam(mode) {
             const container = document.getElementById(mode + 'RewardParamsList');
             const paramDiv = document.createElement('div');
@@ -182,7 +214,7 @@
                 rewardParams: rewardParams
             };
 
-            fetch('/api/admin/quests', {
+            fetch(withDb('/api/admin/quests'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -210,7 +242,7 @@
                 rewardParams: rewardParams
             };
 
-            fetch(`/api/admin/quests/${questId}`, {
+            fetch(withDb(`/api/admin/quests/${questId}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -227,6 +259,25 @@
 
         // Edit button handler
         document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('quest-search').addEventListener('input', function(event) {
+                const query = event.target.value.trim().toLowerCase();
+                document.querySelectorAll('#quest-table-body tr').forEach(row => {
+                    row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+                });
+            });
+
+            document.getElementById('sync-quest-to-secondary').addEventListener('click', function() {
+                if (confirm('Sync prod quests to dev DB?')) {
+                    postSync('/api/admin/quests/sync-to-secondary');
+                }
+            });
+
+            document.getElementById('sync-quest-to-primary').addEventListener('click', function() {
+                if (confirm('Sync dev quests to prod DB?')) {
+                    postSync('/api/admin/quests/sync-to-primary');
+                }
+            });
+
             document.querySelectorAll('.edit-quest-btn').forEach(button => {
                 button.addEventListener('click', function() {
                     const questId = this.getAttribute('data-quest-id');
@@ -269,7 +320,7 @@
                     const questId = this.getAttribute('data-quest-id');
                     
                     if (confirm('Are you sure you want to delete this quest?')) {
-                        fetch(`/api/admin/quests/${questId}`, {
+                        fetch(withDb(`/api/admin/quests/${questId}`), {
                             method: 'DELETE'
                         }).then(response => {
                             if (response.ok) {
