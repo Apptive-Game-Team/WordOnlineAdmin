@@ -68,17 +68,22 @@ public class SpreadSheetService {
 
     private GameObjectDto fromGameObject(GameObject gameObject) {
         try {
-            long magicId = gameObject.getParameterValue("magic_id")
-                    .orElseThrow(() -> new IllegalArgumentException("Magic Not Found"))
-                    .getValue().longValue();
+            Double magicIdVal = gameObject.getParameterValue("magic_id")
+                    .map(ParameterValue::getValue)
+                    .orElse(null);
+            if (magicIdVal == null) {
+                throw new IllegalArgumentException("Magic Not Found");
+            }
+            long magicId = magicIdVal.longValue();
             Magic magic = magicRepository.findById(magicId)
                     .orElseThrow(() -> new IllegalArgumentException("Magic Not Found"));
 
             int manaCost = magic.getMagicCards().stream()
                     .map(MagicCard::getCard)
                     .map(Card::getGameObject)
-                    .map(cardData -> cardData.getParameterValue("mana_cost").orElseThrow(() -> new IllegalArgumentException("Mana Cost not Found")))
-                    .map(ParameterValue::getValue)
+                    .map(cardData -> cardData.getParameterValue("mana_cost")
+                            .map(ParameterValue::getValue)
+                            .orElseThrow(() -> new IllegalArgumentException("Mana Cost not Found")))
                     .mapToInt(Double::intValue)
                     .sum();
 
