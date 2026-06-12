@@ -7,8 +7,8 @@ import com.wordonline.admin.repository.parameter.ParameterRepository;
 import com.wordonline.admin.repository.tag.TagRepository;
 import com.wordonline.admin.service.ParameterService;
 import com.wordonline.admin.service.ServerService;
+import com.wordonline.admin.service.SpreadSheetService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,6 +26,7 @@ public class AdminPageController {
     private final TagRepository tagRepository;
     private final ServerService serverService;
     private final ParameterService parameterService;
+    private final SpreadSheetService spreadSheetService;
 
     @GetMapping("/")
     public String index(Model model) {
@@ -36,7 +37,8 @@ public class AdminPageController {
     @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/game-object")
     public String adminGameObject(Model model) {
-        model.addAttribute("gameObjects", gameObjectRepository.findAll(Sort.by("id")));
+        model.addAttribute("gameObjects", parameterService.getGameObjectComparisons());
+        model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
         return "admin-game-object";
     }
 
@@ -48,11 +50,29 @@ public class AdminPageController {
             Model model
     ) {
         boolean secondary = "secondary".equalsIgnoreCase(db);
-        model.addAttribute("gameObject", parameterService.getGameObjectDto(gameObjectId, secondary));
-        model.addAttribute("parameters", parameterService.getParameterDtos(secondary));
+        String name = parameterService.getGameObjectDto(gameObjectId, secondary).name();
+        return "redirect:/admin/game-object/by-name/"
+                + org.springframework.web.util.UriUtils.encodePathSegment(
+                        name,
+                        java.nio.charset.StandardCharsets.UTF_8
+                );
+    }
+
+    @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
+    @GetMapping("/admin/game-object/by-name/{gameObjectName}")
+    public String adminParameterValueByName(
+            @PathVariable String gameObjectName,
+            Model model
+    ) {
+        var comparison = spreadSheetService.getGameObjectComparison(gameObjectName);
+        var primaryGameObject = gameObjectRepository.findByName(gameObjectName);
+        model.addAttribute("gameObject", comparison);
         model.addAttribute("tags", tagRepository.findAll());
-        model.addAttribute("gameObjectTags", secondary ? java.util.List.of() : gameObjectRepository.findById(gameObjectId).orElseThrow().getGameObjectTags());
-        model.addAttribute("selectedDb", secondary ? "secondary" : "primary");
+        model.addAttribute(
+                "gameObjectTags",
+                primaryGameObject.map(GameObject::getGameObjectTags).orElseGet(java.util.List::of)
+        );
+        model.addAttribute("primaryGameObjectId", primaryGameObject.map(GameObject::getId).orElse(null));
         model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
         return "admin-parameter-value";
     }
@@ -60,12 +80,9 @@ public class AdminPageController {
     @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/parameter")
     public String adminParameter(
-            @RequestParam(value = "db", defaultValue = "primary") String db,
             Model model
     ) {
-        boolean secondary = "secondary".equalsIgnoreCase(db);
-        model.addAttribute("parameters", parameterService.getParameterDtos(secondary));
-        model.addAttribute("selectedDb", secondary ? "secondary" : "primary");
+        model.addAttribute("parameters", parameterService.getParameterComparisons());
         model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
         return "admin-parameter";
     }

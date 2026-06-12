@@ -70,6 +70,28 @@ public class SecondaryParameterSyncService {
         );
     }
 
+    public void createGameObject(String name) {
+        secondaryJdbcTemplate.update("insert into game_objects (name) values (?)", name);
+    }
+
+    public void updateGameObject(String currentName, String newName) {
+        int updated = secondaryJdbcTemplate.update(
+                "update game_objects set name = ? where name = ?",
+                newName,
+                currentName
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("Not Found GameObject in secondary database: " + currentName);
+        }
+    }
+
+    public void deleteGameObject(String name) {
+        int deleted = secondaryJdbcTemplate.update("delete from game_objects where name = ?", name);
+        if (deleted == 0) {
+            throw new IllegalArgumentException("Not Found GameObject in secondary database: " + name);
+        }
+    }
+
     public List<ParameterValueSnapshot> getParameterValueSnapshots() {
         return secondaryJdbcTemplate.query(
                 """
@@ -198,28 +220,12 @@ public class SecondaryParameterSyncService {
         }
     }
 
-    public void createParameterValue(Long gameObjectId, Long parameterId, Double value) {
-        secondaryJdbcTemplate.update(
-                "insert into parameter_values (value, game_object_id, parameter_id) values (?, ?, ?)",
-                value,
-                gameObjectId,
-                parameterId
-        );
-    }
-
-    public void updateParameterValue(Long parameterValueId, Double value) {
-        secondaryJdbcTemplate.update(
-                "update parameter_values set value = ? where id = ?",
-                value,
-                parameterValueId
-        );
-    }
-
-    public void deleteParameterValue(Long parameterValueId) {
-        secondaryJdbcTemplate.update("delete from parameter_values where id = ?", parameterValueId);
-    }
-
     public void upsertParameterValue(String gameObjectName, String parameterName, Double value) {
+        if (value == null) {
+            deleteParameterValueIfPresent(gameObjectName, parameterName);
+            return;
+        }
+
         ensureGameObject(gameObjectName);
         ensureParameter(parameterName);
 
@@ -250,6 +256,27 @@ public class SecondaryParameterSyncService {
         );
     }
 
+    public void createParameterValue(Long gameObjectId, Long parameterId, Double value) {
+        secondaryJdbcTemplate.update(
+                "insert into parameter_values (value, game_object_id, parameter_id) values (?, ?, ?)",
+                value,
+                gameObjectId,
+                parameterId
+        );
+    }
+
+    public void updateParameterValue(Long parameterValueId, Double value) {
+        secondaryJdbcTemplate.update(
+                "update parameter_values set value = ? where id = ?",
+                value,
+                parameterValueId
+        );
+    }
+
+    public void deleteParameterValue(Long parameterValueId) {
+        secondaryJdbcTemplate.update("delete from parameter_values where id = ?", parameterValueId);
+    }
+
     public void deleteParameterValue(String gameObjectName, String parameterName) {
         Long gameObjectId = findGameObjectId(gameObjectName);
         Long parameterId = findParameterId(parameterName);
@@ -265,6 +292,29 @@ public class SecondaryParameterSyncService {
                     "Not Found Parameter Value in secondary database: " + gameObjectName + ", " + parameterName
             );
         }
+    }
+
+    private void deleteParameterValueIfPresent(String gameObjectName, String parameterName) {
+        List<Long> gameObjectIds = secondaryJdbcTemplate.query(
+                "select id from game_objects where name = ?",
+                (rs, rowNum) -> rs.getLong("id"),
+                gameObjectName
+        );
+        List<Long> parameterIds = secondaryJdbcTemplate.query(
+                "select id from parameters where name = ?",
+                (rs, rowNum) -> rs.getLong("id"),
+                parameterName
+        );
+
+        if (gameObjectIds.isEmpty() || parameterIds.isEmpty()) {
+            return;
+        }
+
+        secondaryJdbcTemplate.update(
+                "delete from parameter_values where game_object_id = ? and parameter_id = ?",
+                gameObjectIds.getFirst(),
+                parameterIds.getFirst()
+        );
     }
 
     private Long findGameObjectId(String gameObjectName) {

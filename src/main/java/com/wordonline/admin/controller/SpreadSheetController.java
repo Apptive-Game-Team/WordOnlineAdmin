@@ -24,13 +24,12 @@ public class SpreadSheetController {
     @GetMapping("/game-objects")
     public String getGameObjects(
             @RequestParam(value = "tags", required = false) List<String> tags,
-            @RequestParam(value = "db", defaultValue = "primary") String db,
             Model model
     ) {
-        boolean secondary = "secondary".equalsIgnoreCase(db);
-        model.addAttribute("gameObjects", spreadSheetService.getGameObjects(tags, secondary));
+        var gameObjects = spreadSheetService.getGameObjectComparisons(tags);
+        model.addAttribute("gameObjects", gameObjects);
+        model.addAttribute("parameterNames", spreadSheetService.getComparisonParameterNames());
         model.addAttribute("allTags", tagRepository.findAll());
-        model.addAttribute("selectedDb", secondary ? "secondary" : "primary");
         model.addAttribute("secondaryDatabaseEnabled", spreadSheetService.hasSecondaryDatabase());
         return "admin-spreadsheet";
     }

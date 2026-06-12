@@ -30,6 +30,34 @@ public class GameObjectController {
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
+    @PostMapping("/game-objects/by-name")
+    public ResponseEntity<String> saveGameObjectByName(
+            @RequestBody GameObjectDto dto,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.createGameObject(dto.name(), isSecondary(db));
+        return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
+    }
+
+    @PatchMapping("/game-objects/by-name/{gameObjectName}")
+    public ResponseEntity<String> updateGameObjectByName(
+            @PathVariable String gameObjectName,
+            @RequestBody GameObjectDto dto,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.updateGameObject(gameObjectName, dto.name(), isSecondary(db));
+        return ResponseEntity.ok("Successfully Updated");
+    }
+
+    @DeleteMapping("/game-objects/by-name/{gameObjectName}")
+    public ResponseEntity<String> deleteGameObjectByName(
+            @PathVariable String gameObjectName,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.deleteGameObject(gameObjectName, isSecondary(db));
+        return ResponseEntity.ok("Successfully Deleted");
+    }
+
     @PatchMapping("/game-objects/{gameObjectId}")
     public ResponseEntity<String> updateGameObject(
             @PathVariable Long gameObjectId,

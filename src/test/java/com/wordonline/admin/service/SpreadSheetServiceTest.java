@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.wordonline.admin.dto.sheet.GameObjectDto;
+import com.wordonline.admin.dto.ParameterDto;
+import com.wordonline.admin.dto.sheet.GameObjectComparisonDto;
+import com.wordonline.admin.controller.SpreadSheetApiController;
 import com.wordonline.admin.entity.magic.Card;
 import com.wordonline.admin.entity.magic.Magic;
 import com.wordonline.admin.entity.magic.MagicCard;
@@ -115,5 +118,85 @@ class SpreadSheetServiceTest {
         // Assert
         assertEquals(1, results.size());
         assertNull(results.get(0).manaCost());
+    }
+
+    @Test
+    void getGameObjectComparisons_mergesDatabasesByName() {
+        GameObject primaryObject = new GameObject("archer");
+        new ParameterValue(100.0, primaryObject, new Parameter("hp"));
+
+        when(gameObjectRepository.findAll(any(Sort.class))).thenReturn(List.of(primaryObject));
+        when(parameterService.getParameterDtos(false)).thenReturn(List.of(
+                new ParameterDto(1L, "hp"),
+                new ParameterDto(2L, "speed")
+        ));
+        when(parameterService.getParameterDtos(true)).thenReturn(List.of(
+                new ParameterDto(10L, "damage"),
+                new ParameterDto(11L, "hp")
+        ));
+        when(secondaryParameterSyncService.getGameObjects()).thenReturn(List.of(
+                new SecondaryParameterSyncService.GameObjectRow(
+                        50L,
+                        "archer",
+                        List.of(
+                                new SecondaryParameterSyncService.ParameterValueRow(1L, 11L, "hp", 90.0),
+                                new SecondaryParameterSyncService.ParameterValueRow(2L, 10L, "damage", 12.0)
+                        )
+                ),
+                new SecondaryParameterSyncService.GameObjectRow(
+                        51L,
+                        "dev-only",
+                        List.of()
+                )
+        ));
+
+        List<GameObjectComparisonDto> result = spreadSheetService.getGameObjectComparisons(null);
+
+        assertEquals(List.of("archer", "dev-only"), result.stream().map(GameObjectComparisonDto::name).toList());
+        GameObjectComparisonDto archer = result.getFirst();
+        assertTrue(archer.primaryPresent());
+        assertTrue(archer.secondaryPresent());
+        assertEquals(List.of("damage", "hp", "speed"), archer.parameters().stream()
+                .map(com.wordonline.admin.dto.sheet.ParameterComparisonDto::name)
+                .toList());
+        assertNull(archer.parameters().getFirst().primaryValue());
+        assertEquals(12.0, archer.parameters().getFirst().secondaryValue());
+        assertEquals(100.0, archer.parameters().get(1).primaryValue());
+        assertEquals(90.0, archer.parameters().get(1).secondaryValue());
+        assertFalse(result.get(1).primaryPresent());
+        assertTrue(result.get(1).secondaryPresent());
+    }
+
+    @Test
+    void getGameObjectComparison_excludesParametersMissingFromBothDatabases() {
+        GameObject primaryObject = new GameObject("archer");
+        new ParameterValue(100.0, primaryObject, new Parameter("hp"));
+
+        when(gameObjectRepository.findAll(any(Sort.class))).thenReturn(List.of(primaryObject));
+        when(parameterService.getParameterDtos(false)).thenReturn(List.of(
+                new ParameterDto(1L, "hp"),
+                new ParameterDto(2L, "speed")
+        ));
+        when(parameterService.getParameterDtos(true)).thenReturn(List.of());
+        when(secondaryParameterSyncService.getGameObjects()).thenReturn(List.of());
+
+        GameObjectComparisonDto result = spreadSheetService.getGameObjectComparison("archer");
+
+        assertEquals(List.of("hp"), result.parameters().stream()
+                .map(com.wordonline.admin.dto.sheet.ParameterComparisonDto::name)
+                .toList());
+    }
+
+    @Test
+    void batchUpdateParametersByName_routesEachValueToSelectedDatabase() {
+        List<SpreadSheetApiController.NamedParameterUpdateDto> updates = List.of(
+                new SpreadSheetApiController.NamedParameterUpdateDto("archer", "hp", 100.0, "primary"),
+                new SpreadSheetApiController.NamedParameterUpdateDto("archer", "hp", 90.0, "secondary")
+        );
+
+        spreadSheetService.batchUpdateParametersByName(updates);
+
+        verify(parameterService).upsertParameterValue("archer", "hp", 100.0, false);
+        verify(parameterService).upsertParameterValue("archer", "hp", 90.0, true);
     }
 }

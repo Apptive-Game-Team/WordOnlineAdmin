@@ -20,15 +20,91 @@ public class MagicController {
 
     @GetMapping("/admin/magic")
     public String adminMagic(
-            @RequestParam(value = "db", defaultValue = "primary") String db,
             Model model
     ) {
-        boolean secondary = isSecondary(db);
-        model.addAttribute("magics", magicService.getAllMagic(secondary));
-        model.addAttribute("cards", magicService.getAllCards(secondary));
-        model.addAttribute("selectedDb", secondary ? "secondary" : "primary");
+        model.addAttribute("magics", magicService.getMagicComparisons());
+        model.addAttribute("primaryCardNames", magicService.getCardNames(false));
+        model.addAttribute(
+                "secondaryCardNames",
+                magicService.hasSecondaryDatabase() ? magicService.getCardNames(true) : List.of()
+        );
         model.addAttribute("secondaryDatabaseEnabled", magicService.hasSecondaryDatabase());
         return "admin-magic";
+    }
+
+    @PostMapping("/admin/magic/by-name/create")
+    public String createMagicByName(
+            @RequestParam String name,
+            @RequestParam String db
+    ) {
+        magicService.createMagic(name, isSecondary(db));
+        return redirect();
+    }
+
+    @PostMapping("/admin/magic/by-name/update")
+    public String updateMagicByName(
+            @RequestParam String currentName,
+            @RequestParam String name,
+            @RequestParam String db
+    ) {
+        magicService.updateMagicName(currentName, name, isSecondary(db));
+        return redirect();
+    }
+
+    @PostMapping("/admin/magic/by-name/delete")
+    public String deleteMagicByName(
+            @RequestParam String name,
+            @RequestParam String db
+    ) {
+        magicService.removeMagic(name, isSecondary(db));
+        return redirect();
+    }
+
+    @PostMapping("/admin/magic/by-name/add-card")
+    public String addCardToMagicByName(
+            @RequestParam String magicName,
+            @RequestParam String cardName,
+            @RequestParam String db
+    ) {
+        magicService.addCardToMagic(magicName, cardName, isSecondary(db));
+        return redirect();
+    }
+
+    @PostMapping("/admin/magic/by-name/remove-card")
+    public String removeCardFromMagicByName(
+            @RequestParam String magicName,
+            @RequestParam String cardName,
+            @RequestParam String db
+    ) {
+        magicService.removeCardFromMagic(magicName, cardName, isSecondary(db));
+        return redirect();
+    }
+
+    @PostMapping("/admin/magic/by-name/bulk-delete")
+    public String bulkDeleteByName(
+            @RequestParam(required = false) List<String> magicNames,
+            @RequestParam String db
+    ) {
+        if (magicNames != null) {
+            for (String magicName : magicNames) {
+                magicService.removeMagic(magicName, isSecondary(db));
+            }
+        }
+        return redirect();
+    }
+
+    @PostMapping("/admin/magic/by-name/bulk-add-card")
+    public String bulkAddCardByName(
+            @RequestParam(required = false) List<String> magicNames,
+            @RequestParam String cardName,
+            @RequestParam String db
+    ) {
+        if (magicNames != null) {
+            for (String magicName : magicNames) {
+                magicService.addCardToMagic(magicName, cardName, isSecondary(db));
+            }
+        }
+        return redirect();
     }
 
     @PostMapping("/admin/magic/create")
@@ -90,12 +166,12 @@ public class MagicController {
 
     @PostMapping("/admin/magic/sync-to-secondary")
     public org.springframework.http.ResponseEntity<String> syncToSecondary() {
-        return org.springframework.http.ResponseEntity.ok(magicService.syncToSecondary().toMessage("Magic: Prod -> Dev"));
+        return org.springframework.http.ResponseEntity.ok(magicService.syncToSecondary().toMessage("Magic: Deploy -> Dev"));
     }
 
     @PostMapping("/admin/magic/sync-to-primary")
     public org.springframework.http.ResponseEntity<String> syncToPrimary() {
-        return org.springframework.http.ResponseEntity.ok(magicService.syncToPrimary().toMessage("Magic: Dev -> Prod"));
+        return org.springframework.http.ResponseEntity.ok(magicService.syncToPrimary().toMessage("Magic: Dev -> Deploy"));
     }
 
     private boolean isSecondary(String db) {
@@ -104,5 +180,9 @@ public class MagicController {
 
     private String redirect(String db) {
         return "redirect:/admin/magic?db=" + (isSecondary(db) ? "secondary" : "primary");
+    }
+
+    private String redirect() {
+        return "redirect:/admin/magic";
     }
 }

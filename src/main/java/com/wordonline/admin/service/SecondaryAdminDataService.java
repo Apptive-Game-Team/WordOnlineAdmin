@@ -213,6 +213,58 @@ public class SecondaryAdminDataService {
         }
     }
 
+    public void updateMagicName(String currentName, String newName) {
+        int updated = jdbcTemplate.update(
+                "update magics set name = ? where name = ?",
+                newName,
+                currentName
+        );
+        if (updated == 0) {
+            throw new IllegalArgumentException("Magic not found in secondary database: " + currentName);
+        }
+    }
+
+    public void deleteMagic(String name) {
+        int deleted = jdbcTemplate.update("delete from magics where name = ?", name);
+        if (deleted == 0) {
+            throw new IllegalArgumentException("Magic not found in secondary database: " + name);
+        }
+    }
+
+    public void addCardToMagic(String magicName, String cardName) {
+        jdbcTemplate.update(
+                """
+                insert into magic_cards (magic_id, card_id)
+                select m.id, c.id
+                from magics m
+                cross join cards c
+                where m.name = ? and c.name = ?
+                """,
+                magicName,
+                cardName
+        );
+    }
+
+    public void removeCardFromMagic(String magicName, String cardName) {
+        List<Long> ids = jdbcTemplate.query(
+                """
+                select mc.id
+                from magic_cards mc
+                join magics m on m.id = mc.magic_id
+                join cards c on c.id = mc.card_id
+                where m.name = ? and c.name = ?
+                order by mc.id
+                limit 1
+                """,
+                (rs, rowNum) -> rs.getLong("id"),
+                magicName,
+                cardName
+        );
+        if (!ids.isEmpty()) {
+            jdbcTemplate.update("delete from magic_cards where id = ?", ids.getFirst());
+        }
+    }
+
     public SyncResult syncAdventuresToSecondary(List<AdventureDto> adventures) {
         int created = 0;
         int updated = 0;
@@ -326,33 +378,54 @@ public class SecondaryAdminDataService {
 
     public SyncResult syncMagicsToSecondary(List<MagicDto> magics) {
         int created = 0;
-        int updated = 0;
         int unchanged = 0;
         List<String> changed = new ArrayList<>();
-        Map<Long, MagicRow> existingMagics = getMagicRows().stream()
-                .collect(Collectors.toMap(MagicRow::id, row -> row));
+        Map<String, MagicRow> existingMagics = getMagicRows().stream()
+                .collect(Collectors.toMap(
+                        MagicRow::name,
+                        row -> row,
+                        (current, replacement) -> {
+                            throw new IllegalStateException("Duplicate magic name in secondary database");
+                        }
+                ));
 
         for (MagicDto magic : magics) {
-            MagicRow existing = existingMagics.get(magic.id());
+            MagicRow existing = existingMagics.get(magic.name());
+            Long targetMagicId;
             if (existing == null) {
-                jdbcTemplate.update("insert into magics (id, name) values (?, ?)", magic.id(), magic.name());
+                targetMagicId = jdbcTemplate.queryForObject(
+                        "insert into magics (name) values (?) returning id",
+                        Long.class,
+                        magic.name()
+                );
                 created++;
-                changed.add("magic#" + magic.id());
-            } else if (!Objects.equals(existing.name(), magic.name())) {
-                updateMagicName(magic.id(), magic.name());
-                updated++;
-                changed.add("magic#" + magic.id());
+                changed.add(magic.name());
             } else {
+                targetMagicId = existing.id();
                 unchanged++;
             }
 
-            jdbcTemplate.update("delete from magic_cards where magic_id = ?", magic.id());
+            jdbcTemplate.update("delete from magic_cards where magic_id = ?", targetMagicId);
             for (CardDto card : magic.cardDtos()) {
-                jdbcTemplate.update("insert into magic_cards (magic_id, card_id) values (?, ?)", magic.id(), card.id());
+                int inserted = jdbcTemplate.update(
+                        """
+                        insert into magic_cards (magic_id, card_id)
+                        select ?, c.id
+                        from cards c
+                        where c.name = ?
+                        """,
+                        targetMagicId,
+                        card.name()
+                );
+                if (inserted == 0) {
+                    throw new IllegalArgumentException(
+                            "Card not found in secondary database: " + card.name()
+                    );
+                }
             }
         }
 
-        return new SyncResult(created, updated, unchanged, changed);
+        return new SyncResult(created, 0, unchanged, changed);
     }
 
     public List<AdventureRow> getAdventureRows() {

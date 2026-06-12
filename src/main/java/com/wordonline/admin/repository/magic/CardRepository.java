@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.wordonline.admin.entity.magic.Card;
 
+import java.util.Optional;
+
 public interface CardRepository extends JpaRepository<Card, Long> {
-    
+    Optional<Card> findByName(String name);
 }
