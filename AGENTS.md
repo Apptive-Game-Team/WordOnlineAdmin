@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository is a Spring Boot 3 admin server built with Gradle and Java 21. Application code lives under `src/main/java/com/wordonline/admin`, grouped by role: `controller`, `service`, `repository`, `entity`, `dto`, `config`, `security`, and `client`. Thymeleaf templates are in `src/main/resources/templates`, static assets in `src/main/resources/static`, and SQL files in `src/main/resources/sql`. Keep new packages aligned with this layout; for example, add new admin endpoints in `controller` and persistence logic in the matching `repository` package.
+This repository is a Spring Boot 3 admin server built with Gradle and Java 21. Application code lives under `src/main/java/com/wordonline/admin`, grouped by role: `controller`, `service`, `repository`, `entity`, `dto`, `config`, `security`, and `client`. Thymeleaf templates are in `src/main/resources/templates`, and static assets are in `src/main/resources/static`. Keep new packages aligned with this layout; for example, add new admin endpoints in `controller` and persistence logic in the matching `repository` package.
 
 ## Build, Test, and Development Commands
 - `./gradlew bootRun`: run the server locally on `PORT` or `8080`.
@@ -10,7 +10,7 @@ This repository is a Spring Boot 3 admin server built with Gradle and Java 21. A
 - `docker build -t word-online-admin .`: build the container image from the multi-stage `Dockerfile`.
 - `./remote-deploy.sh`: build and deploy to the configured remote host. Requires `DEPLOY_USER` and `DEPLOY_SERVER`.
 
-Local configuration is loaded from `src/main/resources/application.yml` and optional `.env[.properties]`. Set `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PW`, `JWT_PUBLIC_KEY`, and `JWT_FILE_PATH` before running locally.
+Local configuration is loaded from `src/main/resources/application.yml` and optional `.env[.properties]`. Set `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PW`, `JWT_PUBLIC_KEY`, and `JWT_FILE_PATH` before running locally. Shared game database changes belong in `../database/migration`; do not add production SQL under this repository's runtime resources.
 
 ## Coding Style & Naming Conventions
 Use 4-space indentation and standard Java formatting. Class names use `PascalCase`; methods, fields, and variables use `camelCase`; package names stay lowercase. Keep controller classes suffixed with `Controller`, service classes with `Service`, repositories with `Repository`, and request/response payloads with `Dto` or `RequestDto`. Prefer constructor injection; this codebase uses Lombok annotations such as `@RequiredArgsConstructor`.
