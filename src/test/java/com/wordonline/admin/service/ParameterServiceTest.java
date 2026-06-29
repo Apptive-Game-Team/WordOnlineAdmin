@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,8 @@ class ParameterServiceTest {
     private ParameterRepository parameterRepository;
     @Mock
     private SecondaryParameterSyncService secondaryParameterSyncService;
+    @Mock
+    private JdbcTemplate primaryJdbcTemplate;
 
     private ParameterService parameterService;
 
@@ -36,7 +39,8 @@ class ParameterServiceTest {
                 gameObjectRepository,
                 parameterValueRepository,
                 parameterRepository,
-                Optional.of(secondaryParameterSyncService)
+                Optional.of(secondaryParameterSyncService),
+                primaryJdbcTemplate
         );
     }
 

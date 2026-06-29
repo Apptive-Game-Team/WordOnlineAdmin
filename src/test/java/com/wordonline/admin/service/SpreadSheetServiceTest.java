@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import com.wordonline.admin.dto.sheet.GameObjectDto;
 import com.wordonline.admin.dto.ParameterDto;
 import com.wordonline.admin.dto.sheet.GameObjectComparisonDto;
+import com.wordonline.admin.dto.sheet.ParameterComparisonDto;
 import com.wordonline.admin.controller.SpreadSheetApiController;
 import com.wordonline.admin.entity.magic.Card;
 import com.wordonline.admin.entity.magic.Magic;
@@ -157,34 +158,65 @@ class SpreadSheetServiceTest {
         assertTrue(archer.primaryPresent());
         assertTrue(archer.secondaryPresent());
         assertEquals(List.of("damage", "hp", "speed"), archer.parameters().stream()
-                .map(com.wordonline.admin.dto.sheet.ParameterComparisonDto::name)
+                .map(ParameterComparisonDto::name)
                 .toList());
-        assertNull(archer.parameters().getFirst().primaryValue());
-        assertEquals(12.0, archer.parameters().getFirst().secondaryValue());
-        assertEquals(100.0, archer.parameters().get(1).primaryValue());
-        assertEquals(90.0, archer.parameters().get(1).secondaryValue());
+        ParameterComparisonDto damage = archer.parameters().getFirst();
+        assertFalse(damage.primaryPresent());
+        assertTrue(damage.secondaryPresent());
+        assertNull(damage.primaryValue());
+        assertEquals(12.0, damage.secondaryValue());
+        ParameterComparisonDto hp = archer.parameters().get(1);
+        assertTrue(hp.primaryPresent());
+        assertTrue(hp.secondaryPresent());
+        assertEquals(100.0, hp.primaryValue());
+        assertEquals(90.0, hp.secondaryValue());
+        ParameterComparisonDto speed = archer.parameters().get(2);
+        assertFalse(speed.primaryPresent());
+        assertFalse(speed.secondaryPresent());
+        assertNull(speed.primaryValue());
+        assertNull(speed.secondaryValue());
         assertFalse(result.get(1).primaryPresent());
         assertTrue(result.get(1).secondaryPresent());
     }
 
     @Test
-    void getGameObjectComparison_excludesParametersMissingFromBothDatabases() {
+    void getGameObjectComparison_usesPresenceFlagsInsteadOfNullValues() {
         GameObject primaryObject = new GameObject("archer");
         new ParameterValue(100.0, primaryObject, new Parameter("hp"));
+        new ParameterValue(null, primaryObject, new Parameter("nullable"));
 
         when(gameObjectRepository.findAll(any(Sort.class))).thenReturn(List.of(primaryObject));
         when(parameterService.getParameterDtos(false)).thenReturn(List.of(
                 new ParameterDto(1L, "hp"),
-                new ParameterDto(2L, "speed")
+                new ParameterDto(2L, "speed"),
+                new ParameterDto(3L, "nullable")
         ));
-        when(parameterService.getParameterDtos(true)).thenReturn(List.of());
-        when(secondaryParameterSyncService.getGameObjects()).thenReturn(List.of());
+        when(parameterService.getParameterDtos(true)).thenReturn(List.of(
+                new ParameterDto(10L, "secondary-only")
+        ));
+        when(secondaryParameterSyncService.getGameObjects()).thenReturn(List.of(
+                new SecondaryParameterSyncService.GameObjectRow(
+                        50L,
+                        "archer",
+                        List.of(new SecondaryParameterSyncService.ParameterValueRow(1L, 10L, "secondary-only", 12.0))
+                )
+        ));
 
         GameObjectComparisonDto result = spreadSheetService.getGameObjectComparison("archer");
 
-        assertEquals(List.of("hp"), result.parameters().stream()
-                .map(com.wordonline.admin.dto.sheet.ParameterComparisonDto::name)
+        assertEquals(List.of("hp", "nullable", "secondary-only"), result.parameters().stream()
+                .map(ParameterComparisonDto::name)
                 .toList());
+        ParameterComparisonDto nullable = result.parameters().get(1);
+        assertTrue(nullable.primaryPresent());
+        assertFalse(nullable.secondaryPresent());
+        assertNull(nullable.primaryValue());
+        assertNull(nullable.secondaryValue());
+        ParameterComparisonDto secondaryOnly = result.parameters().get(2);
+        assertFalse(secondaryOnly.primaryPresent());
+        assertTrue(secondaryOnly.secondaryPresent());
+        assertNull(secondaryOnly.primaryValue());
+        assertEquals(12.0, secondaryOnly.secondaryValue());
     }
 
     @Test

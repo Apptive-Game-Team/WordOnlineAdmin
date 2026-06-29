@@ -61,19 +61,23 @@
                     <tr th:each="parameter : ${gameObject.parameters}">
                         <td th:text="${parameter.name}"></td>
                         <td>
-                            <input type="number" step="any" class="form-control editable-param"
+                            <input th:if="${parameter.primaryPresent}" type="number" step="any" class="form-control editable-param"
                                    data-db="primary"
                                    th:attr="data-param-name=${parameter.name},
-                                            data-initial-value=${parameter.primaryValue}"
+                                            data-initial-value=${parameter.primaryValue},
+                                            data-present=true"
                                    th:value="${parameter.primaryValue}" placeholder="N/A">
+                            <span th:if="${!parameter.primaryPresent}" class="text-muted">N/A</span>
                         </td>
                         <td>
-                            <input type="number" step="any" class="form-control editable-param"
+                            <input th:if="${parameter.secondaryPresent}" type="number" step="any" class="form-control editable-param"
                                    data-db="secondary"
                                    th:disabled="${!secondaryDatabaseEnabled}"
                                    th:attr="data-param-name=${parameter.name},
-                                            data-initial-value=${parameter.secondaryValue}"
+                                            data-initial-value=${parameter.secondaryValue},
+                                            data-present=true"
                                    th:value="${parameter.secondaryValue}" placeholder="N/A">
+                            <span th:if="${!parameter.secondaryPresent}" class="text-muted">N/A</span>
                         </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-danger delete-param-btn"
@@ -177,12 +181,10 @@
 
         // Filter out already added parameters from the dropdown
         console.log("[JS DEBUG] Executing dropdown options filtering...");
-        const addedParameterNames = Array.from(document.querySelectorAll('#parameter-value-table-body tr td:first-child'))
-            .map(td => {
-                const name = td.textContent.trim();
-                console.log("  -> Table added parameter name:", name);
-                return name;
-            });
+        const addedParameterNames = Array.from(document.querySelectorAll('#parameter-value-table-body .editable-param[data-db="primary"]'))
+            .map(input => input.dataset.paramName)
+            .filter(Boolean);
+        console.log("  -> Primary parameter names already present:", addedParameterNames);
         const selectEl = document.getElementById('parameterId');
         console.log("[JS DEBUG] selectEl exists:", !!selectEl);
         if (selectEl) {
@@ -201,11 +203,21 @@
 
         const addParameterValueForm = document.getElementById('addParameterValueForm');
         console.log("[JS DEBUG] addParameterValueForm exists:", !!addParameterValueForm);
+        let isAddFormSubmitting = false;
         if (addParameterValueForm) {
             addParameterValueForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
                 console.log("[JS DEBUG] addParameterValueForm submit event triggered!");
+                if (isAddFormSubmitting) {
+                    console.warn("[JS DEBUG] Double submit blocked.");
+                    return;
+                }
+
+                const submitBtn = event.target.querySelector('button[type="submit"]');
                 try {
+                    isAddFormSubmitting = true;
+                    if (submitBtn) submitBtn.disabled = true;
+
                     const formData = new FormData(event.target);
                     const valueStr = formData.get('value');
                     console.log("  -> formData valueStr:", valueStr);
@@ -281,6 +293,9 @@
                 } catch (error) {
                     console.error("[JS DEBUG] Exception caught in submit handler:", error);
                     alert('An error occurred while adding parameter value: ' + error.message);
+                } finally {
+                    isAddFormSubmitting = false;
+                    if (submitBtn) submitBtn.disabled = false;
                 }
             });
         }

@@ -82,11 +82,11 @@ public class SpreadSheetService {
                 .filter(gameObject -> hasAllTags(gameObject, tagNames))
                 .map(GameObject::getName)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-        Map<String, Map<String, Double>> primaryValues = primaryGameObjects.stream()
+        Map<String, Map<String, ParameterValuePresence>> primaryValues = primaryGameObjects.stream()
                 .filter(gameObject -> filteredPrimaryNames.contains(gameObject.getName()))
                 .collect(Collectors.toMap(
                         GameObject::getName,
-                        this::getParameterValuesByName,
+                        this::getParameterValuePresenceByName,
                         (current, replacement) -> {
                             throw new IllegalStateException("Duplicate primary game object name");
                         },
@@ -96,14 +96,14 @@ public class SpreadSheetService {
         List<SecondaryParameterSyncService.GameObjectRow> secondaryGameObjects = secondaryParameterSyncService
                 .map(SecondaryParameterSyncService::getGameObjects)
                 .orElseGet(List::of);
-        Map<String, Map<String, Double>> secondaryValues = new TreeMap<>();
+        Map<String, Map<String, ParameterValuePresence>> secondaryValues = new TreeMap<>();
         for (SecondaryParameterSyncService.GameObjectRow gameObject : secondaryGameObjects) {
             if (tagNames != null
                     && !tagNames.isEmpty()
                     && !filteredPrimaryNames.contains(gameObject.name())) {
                 continue;
             }
-            if (secondaryValues.put(gameObject.name(), getSecondaryParameterValuesByName(gameObject)) != null) {
+            if (secondaryValues.put(gameObject.name(), getSecondaryParameterValuePresenceByName(gameObject)) != null) {
                 throw new IllegalStateException("Duplicate secondary game object name: " + gameObject.name());
             }
         }
@@ -114,14 +114,10 @@ public class SpreadSheetService {
 
         return gameObjectNames.stream()
                 .map(gameObjectName -> {
-                    Map<String, Double> primary = primaryValues.getOrDefault(gameObjectName, Map.of());
-                    Map<String, Double> secondary = secondaryValues.getOrDefault(gameObjectName, Map.of());
+                    Map<String, ParameterValuePresence> primary = primaryValues.getOrDefault(gameObjectName, Map.of());
+                    Map<String, ParameterValuePresence> secondary = secondaryValues.getOrDefault(gameObjectName, Map.of());
                     List<ParameterComparisonDto> parameters = parameterNames.stream()
-                            .map(parameterName -> new ParameterComparisonDto(
-                                    parameterName,
-                                    primary.get(parameterName),
-                                    secondary.get(parameterName)
-                            ))
+                            .map(parameterName -> toParameterComparison(parameterName, primary, secondary))
                             .toList();
                     return new GameObjectComparisonDto(
                             gameObjectName,
@@ -144,8 +140,8 @@ public class SpreadSheetService {
                 comparison.secondaryPresent(),
                 comparison.parameters().stream()
                         .filter(parameter ->
-                                parameter.primaryValue() != null
-                                    || parameter.secondaryValue() != null
+                                parameter.primaryPresent()
+                                    || parameter.secondaryPresent()
                         )
                         .toList()
         );
@@ -299,8 +295,25 @@ public class SpreadSheetService {
         return gameObjectTagNames.containsAll(tagNames);
     }
 
-    private Map<String, Double> getParameterValuesByName(GameObject gameObject) {
-        Map<String, Double> values = new LinkedHashMap<>();
+    private ParameterComparisonDto toParameterComparison(
+            String parameterName,
+            Map<String, ParameterValuePresence> primary,
+            Map<String, ParameterValuePresence> secondary
+    ) {
+        ParameterValuePresence primaryPresence = primary.get(parameterName);
+        ParameterValuePresence secondaryPresence = secondary.get(parameterName);
+
+        return new ParameterComparisonDto(
+                parameterName,
+                primaryPresence != null,
+                secondaryPresence != null,
+                primaryPresence != null ? primaryPresence.value() : null,
+                secondaryPresence != null ? secondaryPresence.value() : null
+        );
+    }
+
+    private Map<String, ParameterValuePresence> getParameterValuePresenceByName(GameObject gameObject) {
+        Map<String, ParameterValuePresence> values = new LinkedHashMap<>();
         for (ParameterValue value : gameObject.getParameterValues()) {
             String parameterName = value.getParameter().getName();
             if (values.containsKey(parameterName)) {
@@ -308,22 +321,22 @@ public class SpreadSheetService {
                         "Duplicate primary parameter value: " + gameObject.getName() + "." + parameterName
                 );
             }
-            values.put(parameterName, value.getValue());
+            values.put(parameterName, new ParameterValuePresence(value.getValue()));
         }
         return values;
     }
 
-    private Map<String, Double> getSecondaryParameterValuesByName(
+    private Map<String, ParameterValuePresence> getSecondaryParameterValuePresenceByName(
             SecondaryParameterSyncService.GameObjectRow gameObject
     ) {
-        Map<String, Double> values = new TreeMap<>();
+        Map<String, ParameterValuePresence> values = new TreeMap<>();
         for (SecondaryParameterSyncService.ParameterValueRow value : gameObject.parameterValues()) {
             if (values.containsKey(value.parameterName())) {
                 throw new IllegalStateException(
                         "Duplicate secondary parameter value: " + gameObject.name() + "." + value.parameterName()
                 );
             }
-            values.put(value.parameterName(), value.value());
+            values.put(value.parameterName(), new ParameterValuePresence(value.value()));
         }
         return values;
     }
@@ -338,5 +351,8 @@ public class SpreadSheetService {
 
     private Float toFloat(Double value) {
         return value != null ? value.floatValue() : null;
+    }
+
+    private record ParameterValuePresence(Double value) {
     }
 }

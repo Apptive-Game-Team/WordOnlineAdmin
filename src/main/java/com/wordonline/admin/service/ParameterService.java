@@ -8,7 +8,9 @@ import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
 import com.wordonline.admin.repository.parameter.ParameterValueRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,8 @@ public class ParameterService {
     private final ParameterValueRepository parameterValueRepository;
     private final ParameterRepository parameterRepository;
     private final Optional<SecondaryParameterSyncService> secondaryParameterSyncService;
+    @Qualifier("jdbcTemplate")
+    private final JdbcTemplate primaryJdbcTemplate;
 
     public boolean hasSecondaryDatabase() {
         return secondaryParameterSyncService.isPresent();
@@ -185,24 +189,34 @@ public class ParameterService {
                 ))
                 .toList();
     }
-
     public void createParameterValue(Long gameObjectId, Long parameterId, Double value, boolean syncSecondary) {
         GameObject gameObject = gameObjectRepository.findById(gameObjectId)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found GameObject"));
         Parameter parameter = parameterRepository.findById(parameterId)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter"));
 
-        ParameterValue parameterValue = gameObject.getParameterValue(parameter.getName())
-                .orElseGet(() -> parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.getId(), parameter.getId())
-                        .orElseGet(() -> new ParameterValue(value, gameObject, parameter)));
-        parameterValue.setValue(value);
-        parameterValueRepository.save(parameterValue);
+        // PostgreSQL atomic upsert: INSERT ... ON CONFLICT DO UPDATE
+        // JPA/Hibernate 1차 캐시 및 동시성 레이스 컨디션을 DB 레벨에서 완전히 방어
+        primaryJdbcTemplate.update(
+                """
+                INSERT INTO parameter_values (game_object_id, parameter_id, value)
+                VALUES (?, ?, ?)
+                ON CONFLICT ON CONSTRAINT uq_parameter_game_object
+                DO UPDATE SET value = EXCLUDED.value
+                """,
+                gameObjectId, parameterId, value
+        );
+
         syncSecondary(syncSecondary, service -> service.upsertParameterValue(gameObject.getName(), parameter.getName(), value));
     }
 
     public void createParameterValue(Long gameObjectId, Long parameterId, Double value, boolean secondary, boolean syncOther) {
         if (secondary) {
-            secondaryParameterSyncService.orElseThrow().createParameterValue(gameObjectId, parameterId, value);
+            GameObject gameObject = gameObjectRepository.findById(gameObjectId)
+                    .orElseThrow(() -> new IllegalArgumentException("Not Found GameObject"));
+            Parameter parameter = parameterRepository.findById(parameterId)
+                    .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter"));
+            secondaryParameterSyncService.orElseThrow().upsertParameterValue(gameObject.getName(), parameter.getName(), value);
             return;
         }
 
@@ -223,7 +237,13 @@ public class ParameterService {
 
     public void updateParameterValue(Long parameterValueId, Double value, boolean secondary, boolean syncOther) {
         if (secondary) {
-            secondaryParameterSyncService.orElseThrow().updateParameterValue(parameterValueId, value);
+            ParameterValue parameterValue = parameterValueRepository.findById(parameterValueId)
+                    .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter Value"));
+            secondaryParameterSyncService.orElseThrow().upsertParameterValue(
+                    parameterValue.getGameObject().getName(),
+                    parameterValue.getParameter().getName(),
+                    value
+            );
             return;
         }
 
@@ -243,7 +263,12 @@ public class ParameterService {
 
     public void deleteParameterValue(Long parameterValueId, boolean secondary, boolean syncOther) {
         if (secondary) {
-            secondaryParameterSyncService.orElseThrow().deleteParameterValue(parameterValueId);
+            ParameterValue parameterValue = parameterValueRepository.findById(parameterValueId)
+                    .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter Value"));
+            secondaryParameterSyncService.orElseThrow().deleteParameterValue(
+                    parameterValue.getGameObject().getName(),
+                    parameterValue.getParameter().getName()
+            );
             return;
         }
 
@@ -285,12 +310,17 @@ public class ParameterService {
         Parameter parameter = parameterRepository.findByName(parameterName)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter name: " + parameterName));
 
-        ParameterValue parameterValue = gameObject.getParameterValue(parameterName)
-                .orElseGet(() -> parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.getId(), parameter.getId())
-                        .orElseGet(() -> new ParameterValue(value, gameObject, parameter)));
+        Optional<ParameterValue> existingValue = gameObject.getParameterValue(parameterName);
+        if (existingValue.isEmpty()) {
+            existingValue = parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.getId(), parameter.getId());
+        }
 
-        parameterValue.setValue(value);
-        parameterValueRepository.save(parameterValue);
+        if (existingValue.isPresent()) {
+            existingValue.get().setValue(value);
+        } else {
+            ParameterValue newValue = new ParameterValue(value, gameObject, parameter);
+            parameterValueRepository.save(newValue);
+        }
         syncSecondary(syncSecondary, service -> service.upsertParameterValue(gameObject.getName(), parameter.getName(), value));
     }
 
@@ -327,15 +357,11 @@ public class ParameterService {
                 log.info("  -> GameObject or Parameter absent. Nothing to delete.");
                 return;
             }
-            parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.get().getId(), parameter.get().getId())
-                    .ifPresentOrElse(
-                            val -> {
-                                gameObject.get().removeParameterValue(val);
-                                parameterValueRepository.delete(val);
-                                log.info("  -> Deleted ParameterValue successfully");
-                            },
-                            () -> log.info("  -> ParameterValue not found in DB. Nothing to delete.")
-                    );
+            int deleted = primaryJdbcTemplate.update(
+                    "DELETE FROM parameter_values WHERE game_object_id = ? AND parameter_id = ?",
+                    gameObject.get().getId(), parameter.get().getId()
+            );
+            log.info("  -> DELETE completed: {} row(s) affected", deleted);
             return;
         }
 
@@ -356,35 +382,17 @@ public class ParameterService {
                 }
         );
 
-        log.info("  -> Saving ParameterValue in Primary DB (resolving existing value)");
-        ParameterValue parameterValue = targetGameObject.getParameterValue(parameterName)
-                .map(val -> {
-                    log.info("    -> Found existing ParameterValue in targetGameObject memory: value={}, updating to {}", val.getValue(), value);
-                    val.setValue(value);
-                    return val;
-                })
-                .orElseGet(() -> {
-                    log.info("    -> ParameterValue not found in memory. Checking repository findByGameObjectIdAndParameterId");
-                    return parameterValueRepository
-                            .findByGameObjectIdAndParameterId(targetGameObject.getId(), targetParameter.getId())
-                            .map(val -> {
-                                log.info("    -> Found existing ParameterValue in repository: value={}, updating to {}", val.getValue(), value);
-                                val.setValue(value);
-                                return val;
-                            })
-                            .orElseGet(() -> {
-                                log.info("    -> Creating brand new ParameterValue in Primary DB: value={}", value);
-                                return new ParameterValue(value, targetGameObject, targetParameter);
-                            });
-                });
-
-        try {
-            ParameterValue saved = parameterValueRepository.save(parameterValue);
-            log.info("  -> Primary DB upsert COMPLETE: ParameterValue id={}", saved.getId());
-        } catch (Exception e) {
-            log.error("  -> Primary DB upsert FAILED: {}", e.getMessage(), e);
-            throw e;
-        }
+        log.info("  -> Upserting ParameterValue in Primary DB via JDBC");
+        int rows = primaryJdbcTemplate.update(
+                """
+                INSERT INTO parameter_values (game_object_id, parameter_id, value)
+                VALUES (?, ?, ?)
+                ON CONFLICT ON CONSTRAINT uq_parameter_game_object
+                DO UPDATE SET value = EXCLUDED.value
+                """,
+                targetGameObject.getId(), targetParameter.getId(), value
+        );
+        log.info("  -> Primary DB UPSERT COMPLETE: {} row(s) affected", rows);
     }
 
     public ParametersDto getParameters() {
