@@ -13,10 +13,10 @@
         <h1 th:text="|${gameObject.name} Parameters|"></h1>
 
         <div class="mb-3">
-            <span class="badge badge-success" th:if="${gameObject.primaryPresent}">Deploy exists</span>
-            <span class="badge badge-secondary" th:if="${!gameObject.primaryPresent}">Deploy N/A</span>
-            <span class="badge badge-success" th:if="${gameObject.secondaryPresent}">Dev exists</span>
-            <span class="badge badge-secondary" th:if="${!gameObject.secondaryPresent}">Dev N/A</span>
+            <span class="badge badge-success" th:if="${gameObject.primaryPresent}">Deploy object exists</span>
+            <span class="badge badge-secondary" th:if="${!gameObject.primaryPresent}">Deploy object N/A</span>
+            <span class="badge badge-success" th:if="${gameObject.secondaryPresent}">Dev object exists</span>
+            <span class="badge badge-secondary" th:if="${!gameObject.secondaryPresent}">Dev object N/A</span>
         </div>
 
         <div class="card mt-4">
@@ -52,8 +52,8 @@
                     <thead>
                     <tr>
                         <th>Parameter</th>
-                        <th>Deploy</th>
-                        <th>Dev</th>
+                        <th>Deploy Value</th>
+                        <th>Dev Value</th>
                         <th>Actions</th>
                     </tr>
                     </thead>
@@ -67,7 +67,7 @@
                                             data-initial-value=${parameter.primaryValue},
                                             data-present=true"
                                    th:value="${parameter.primaryValue}" placeholder="N/A">
-                            <span th:if="${!parameter.primaryPresent}" class="text-muted">N/A</span>
+                            <span th:if="${!parameter.primaryPresent}" class="text-muted">Value N/A</span>
                         </td>
                         <td>
                             <input th:if="${parameter.secondaryPresent}" type="number" step="any" class="form-control editable-param"
@@ -77,7 +77,7 @@
                                             data-initial-value=${parameter.secondaryValue},
                                             data-present=true"
                                    th:value="${parameter.secondaryValue}" placeholder="N/A">
-                            <span th:if="${!parameter.secondaryPresent}" class="text-muted">N/A</span>
+                            <span th:if="${!parameter.secondaryPresent}" class="text-muted">Value N/A</span>
                         </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-danger delete-param-btn"
