@@ -22,6 +22,13 @@ public class SpreadSheetApiController {
 
     public record ParameterUpdateDto(Long gameObjectId, String parameterName, Double value) {}
 
+    public record NamedParameterUpdateDto(
+            String gameObjectName,
+            String parameterName,
+            Double value,
+            String db
+    ) {}
+
     public record BatchParameterUpdateRequest(
             List<ParameterUpdateDto> updates,
             Boolean syncSecondary
@@ -37,6 +44,14 @@ public class SpreadSheetApiController {
                 "secondary".equalsIgnoreCase(db),
                 Boolean.TRUE.equals(request.syncSecondary())
         );
+        return ResponseEntity.ok("Changes saved successfully!");
+    }
+
+    @PostMapping("/game-objects/by-name")
+    public ResponseEntity<String> updateGameObjectsByName(
+            @RequestBody List<NamedParameterUpdateDto> updates
+    ) {
+        spreadSheetService.batchUpdateParametersByName(updates);
         return ResponseEntity.ok("Changes saved successfully!");
     }
 

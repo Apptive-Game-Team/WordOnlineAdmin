@@ -25,6 +25,34 @@ public class ParameterController {
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
+    @PostMapping("/by-name")
+    public ResponseEntity<String> createParameterByName(
+            @RequestBody ParameterRequestDto dto,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.createParameterInDatabase(dto.name(), isSecondary(db));
+        return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
+    }
+
+    @PatchMapping("/by-name/{parameterName}")
+    public ResponseEntity<String> updateParameterByName(
+            @PathVariable String parameterName,
+            @RequestBody ParameterRequestDto dto,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.updateParameter(parameterName, dto.name(), isSecondary(db));
+        return ResponseEntity.ok("Successfully Updated");
+    }
+
+    @DeleteMapping("/by-name/{parameterName}")
+    public ResponseEntity<String> deleteParameterByName(
+            @PathVariable String parameterName,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.deleteParameter(parameterName, isSecondary(db));
+        return ResponseEntity.ok("Successfully Deleted");
+    }
+
     @PatchMapping("/{parameterId}")
     public ResponseEntity<String> updateParameter(
             @PathVariable Long parameterId,
@@ -47,12 +75,12 @@ public class ParameterController {
 
     @PostMapping("/sync-to-secondary")
     public ResponseEntity<String> syncToSecondary() {
-        return ResponseEntity.ok(parameterService.syncParametersToSecondary().toMessage("Parameters: Prod -> Dev"));
+        return ResponseEntity.ok(parameterService.syncParametersToSecondary().toMessage("Parameters: Deploy -> Dev"));
     }
 
     @PostMapping("/sync-to-primary")
     public ResponseEntity<String> syncToPrimary() {
-        return ResponseEntity.ok(parameterService.syncParametersToPrimary().toMessage("Parameters: Dev -> Prod"));
+        return ResponseEntity.ok(parameterService.syncParametersToPrimary().toMessage("Parameters: Dev -> Deploy"));
     }
 
     private boolean isSyncRequested(Boolean syncSecondary) {

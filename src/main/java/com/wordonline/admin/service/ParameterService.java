@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -84,6 +86,36 @@ public class ParameterService {
         deleteParameter(parameterId, syncOther);
     }
 
+    public void createParameterInDatabase(String name, boolean secondary) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow().createParameter(name);
+            return;
+        }
+        parameterRepository.save(new Parameter(name));
+    }
+
+    public void updateParameter(String currentName, String newName, boolean secondary) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow().updateParameter(currentName, newName);
+            return;
+        }
+
+        Parameter parameter = parameterRepository.findByName(currentName)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter: " + currentName));
+        parameter.setName(newName);
+    }
+
+    public void deleteParameter(String name, boolean secondary) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow().deleteParameter(name);
+            return;
+        }
+
+        Parameter parameter = parameterRepository.findByName(name)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter: " + name));
+        parameterRepository.delete(parameter);
+    }
+
     public void createGameObject(String name) {
         GameObject gameObject = new GameObject(name);
         gameObjectRepository.save(gameObject);
@@ -97,6 +129,58 @@ public class ParameterService {
 
     public void deleteGameObject(Long gameObjectId) {
         gameObjectRepository.deleteById(gameObjectId);
+    }
+
+    public void createGameObject(String name, boolean secondary) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow().createGameObject(name);
+            return;
+        }
+        createGameObject(name);
+    }
+
+    public void updateGameObject(String currentName, String newName, boolean secondary) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow().updateGameObject(currentName, newName);
+            return;
+        }
+
+        GameObject gameObject = gameObjectRepository.findByName(currentName)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found GameObject: " + currentName));
+        gameObject.setName(newName);
+    }
+
+    public void deleteGameObject(String name, boolean secondary) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow().deleteGameObject(name);
+            return;
+        }
+
+        GameObject gameObject = gameObjectRepository.findByName(name)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found GameObject: " + name));
+        gameObjectRepository.delete(gameObject);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.wordonline.admin.dto.GameObjectComparisonDto> getGameObjectComparisons() {
+        Set<String> primaryNames = gameObjectRepository.findAll().stream()
+                .map(GameObject::getName)
+                .collect(Collectors.toSet());
+        Set<String> secondaryNames = secondaryParameterSyncService
+                .map(service -> service.getGameObjects().stream()
+                        .map(SecondaryParameterSyncService.GameObjectRow::name)
+                        .collect(Collectors.toSet()))
+                .orElseGet(Set::of);
+        Set<String> allNames = new TreeSet<>(primaryNames);
+        allNames.addAll(secondaryNames);
+
+        return allNames.stream()
+                .map(name -> new com.wordonline.admin.dto.GameObjectComparisonDto(
+                        name,
+                        primaryNames.contains(name),
+                        secondaryNames.contains(name)
+                ))
+                .toList();
     }
 
     public void createParameterValue(Long gameObjectId, Long parameterId, Double value, boolean syncSecondary) {
@@ -202,6 +286,43 @@ public class ParameterService {
         syncSecondary(syncSecondary, service -> service.upsertParameterValue(gameObject.getName(), parameter.getName(), value));
     }
 
+    public void upsertParameterValue(
+            String gameObjectName,
+            String parameterName,
+            Double value,
+            boolean secondary
+    ) {
+        if (secondary) {
+            secondaryParameterSyncService.orElseThrow()
+                    .upsertParameterValue(gameObjectName, parameterName, value);
+            return;
+        }
+
+        Optional<GameObject> gameObject = gameObjectRepository.findByName(gameObjectName);
+        Optional<Parameter> parameter = parameterRepository.findByName(parameterName);
+
+        if (value == null) {
+            if (gameObject.isEmpty() || parameter.isEmpty()) {
+                return;
+            }
+            parameterValueRepository.findByGameObjectAndParameter(gameObject.get(), parameter.get())
+                    .ifPresent(parameterValueRepository::delete);
+            return;
+        }
+
+        GameObject targetGameObject = gameObject.orElseGet(
+                () -> gameObjectRepository.save(new GameObject(gameObjectName))
+        );
+        Parameter targetParameter = parameter.orElseGet(
+                () -> parameterRepository.save(new Parameter(parameterName))
+        );
+        ParameterValue parameterValue = parameterValueRepository
+                .findByGameObjectAndParameter(targetGameObject, targetParameter)
+                .orElseGet(() -> new ParameterValue(value, targetGameObject, targetParameter));
+        parameterValue.setValue(value);
+        parameterValueRepository.save(parameterValue);
+    }
+
     public ParametersDto getParameters() {
         return new ParametersDto(
                 parameterRepository.findAll(Sort.by("id"))
@@ -227,6 +348,28 @@ public class ParameterService {
         return parameterRepository.findAll(Sort.by("id"))
                 .stream()
                 .map(parameter -> new ParameterDto(parameter.getId(), parameter.getName()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.wordonline.admin.dto.ParameterComparisonDto> getParameterComparisons() {
+        Set<String> primaryNames = parameterRepository.findAll().stream()
+                .map(Parameter::getName)
+                .collect(Collectors.toSet());
+        Set<String> secondaryNames = secondaryParameterSyncService
+                .map(service -> service.getParameters().stream()
+                        .map(SecondaryParameterSyncService.ParameterRow::name)
+                        .collect(Collectors.toSet()))
+                .orElseGet(Set::of);
+        Set<String> allNames = new TreeSet<>(primaryNames);
+        allNames.addAll(secondaryNames);
+
+        return allNames.stream()
+                .map(name -> new com.wordonline.admin.dto.ParameterComparisonDto(
+                        name,
+                        primaryNames.contains(name),
+                        secondaryNames.contains(name)
+                ))
                 .toList();
     }
 

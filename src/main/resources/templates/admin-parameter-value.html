@@ -4,112 +4,79 @@
       layout:decorate="~{layout}">
 
 <head>
-    <title>Admin - Parameter Value Management</title>
+    <title>Admin - Game Object Parameter Comparison</title>
 </head>
 
 <body>
-
 <div layout:fragment="content">
     <div class="container">
-        <h1 th:text="|Parameter Values for ${gameObject.name}|"></h1>
-        <form class="form-inline mt-3 mb-3" method="get" th:action="@{|/admin/game-object/${gameObject.id}|}">
-            <label class="mr-2" for="db-select">View DB</label>
-            <select id="db-select" name="db" class="form-control mr-2" onchange="this.form.submit()">
-                <option value="primary" th:selected="${selectedDb == 'primary'}">Prod</option>
-                <option value="secondary" th:selected="${selectedDb == 'secondary'}" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
-            </select>
-            <button type="button" id="sync-values-to-secondary" class="btn btn-outline-secondary mr-2" th:disabled="${!secondaryDatabaseEnabled}">Prod -> Dev</button>
-            <button type="button" id="sync-values-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev -> Prod</button>
-        </form>
+        <h1 th:text="|${gameObject.name} Parameters|"></h1>
 
-        <!-- ParameterValue Management -->
+        <div class="mb-3">
+            <span class="badge badge-success" th:if="${gameObject.primaryPresent}">Deploy exists</span>
+            <span class="badge badge-secondary" th:if="${!gameObject.primaryPresent}">Deploy N/A</span>
+            <span class="badge badge-success" th:if="${gameObject.secondaryPresent}">Dev exists</span>
+            <span class="badge badge-secondary" th:if="${!gameObject.secondaryPresent}">Dev N/A</span>
+        </div>
+
         <div class="card mt-4">
-            <div class="card-header">
-                <h3 th:text="|Parameter Values for ${gameObject.name}|"></h3>
-            </div>
+            <div class="card-header"><h3>Parameter Values</h3></div>
             <div class="card-body">
-                <form id="addParameterValueForm" class="form-inline">
-                    <div class="form-group mb-2">
-                        <label for="parameterId" class="sr-only">Parameter</label>
-                        <select class="form-control" id="parameterId" name="parameterId">
-                            <option th:each="parameter : ${parameters}" th:value="${parameter.id}" th:text="${parameter.name}"></option>
-                        </select>
-                    </div>
-                    <div class="form-group mx-sm-3 mb-2">
-                        <label for="parameterValue" class="sr-only">Value</label>
-                        <input type="number" step="0.01" class="form-control" id="parameterValue" name="value" placeholder="Value">
-                    </div>
-                    <button type="submit" class="btn btn-primary mb-2">Add Parameter Value</button>
-                </form>
-
-                <div class="form-group mt-3">
+                <div class="form-group">
                     <label for="parameter-value-search">Search</label>
-                    <input type="text" class="form-control" id="parameter-value-search" placeholder="Search by id, parameter, or value">
+                    <input type="text" class="form-control" id="parameter-value-search"
+                           placeholder="Search parameter or value">
                 </div>
 
                 <table class="table table-striped mt-3">
                     <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Parameter</th>
-                        <th>Value</th>
-                        <th>Actions</th>
+                        <th>Deploy</th>
+                        <th>Dev</th>
                     </tr>
                     </thead>
                     <tbody id="parameter-value-table-body">
-                    <tr th:each="paramValue : ${gameObject.parameterValues}">
-                        <td th:text="${paramValue.id}"></td>
-                        <td th:text="${paramValue.parameterName}"></td>
-                        <td th:text="${paramValue.value}"></td>
+                    <tr th:each="parameter : ${gameObject.parameters}">
+                        <td th:text="${parameter.name}"></td>
                         <td>
-                            <form class="d-inline update-form">
-                                <input type="hidden" name="id" th:value="${paramValue.id}">
-                                <input type="number" step="0.01" name="value" th:value="${paramValue.value}" class="form-control d-inline w-auto">
-                                <button type="submit" class="btn btn-sm btn-info">Update</button>
-                            </form>
-                            <form class="d-inline delete-form">
-                                <input type="hidden" name="id" th:value="${paramValue.id}">
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
+                            <input type="number" step="any" class="form-control editable-param"
+                                   data-db="primary"
+                                   th:attr="data-param-name=${parameter.name},
+                                            data-initial-value=${parameter.primaryValue}"
+                                   th:value="${parameter.primaryValue}" placeholder="N/A">
+                        </td>
+                        <td>
+                            <input type="number" step="any" class="form-control editable-param"
+                                   data-db="secondary"
+                                   th:disabled="${!secondaryDatabaseEnabled}"
+                                   th:attr="data-param-name=${parameter.name},
+                                            data-initial-value=${parameter.secondaryValue}"
+                                   th:value="${parameter.secondaryValue}" placeholder="N/A">
                         </td>
                     </tr>
                     </tbody>
                 </table>
+                <button id="save-values" class="btn btn-success">Save Changes</button>
             </div>
         </div>
-        <!-- Tag Management -->
-        <div class="card mt-4" th:if="${selectedDb == 'primary'}">
-            <div class="card-header">
-                <h3 th:text="|Tags for ${gameObject.name}|"></h3>
-            </div>
+
+        <div class="card mt-4" th:if="${gameObject.primaryPresent}">
+            <div class="card-header"><h3>Deploy Tags</h3></div>
             <div class="card-body">
                 <form id="addTagForm" class="form-inline">
-                    <div class="form-group mb-2">
-                        <label for="tagId" class="sr-only">Tag</label>
-                        <select class="form-control" id="tagId" name="tagId">
-                            <option th:each="tag : ${tags}" th:value="${tag.id}" th:text="${tag.name}"></option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary mb-2 ml-2">Add Tag</button>
+                    <select class="form-control" id="tagId" name="tagId">
+                        <option th:each="tag : ${tags}" th:value="${tag.id}" th:text="${tag.name}"></option>
+                    </select>
+                    <button type="submit" class="btn btn-primary ml-2">Add Tag</button>
                 </form>
-
                 <table class="table table-striped mt-3">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tag</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
                     <tbody>
                     <tr th:each="gameObjectTag : ${gameObjectTags}">
-                        <td th:text="${gameObjectTag.tag.id}"></td>
                         <td th:text="${gameObjectTag.tag.name}"></td>
                         <td>
-                            <form class="d-inline remove-tag-form">
-                                <input type="hidden" name="tagId" th:value="${gameObjectTag.tag.id}">
-                                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-danger remove-tag-button"
+                                    th:attr="data-tag-id=${gameObjectTag.tag.id}">Remove</button>
                         </td>
                     </tr>
                     </tbody>
@@ -119,154 +86,71 @@
     </div>
 
     <script th:inline="javascript">
-        /*<![CDATA[*/
-        const gameObjectId = /*[[${gameObject.id}]]*/ 0;
-        const selectedDb = /*[[${selectedDb}]]*/ 'primary';
-
-        function getRowSearchText(row) {
-            const inputText = Array.from(row.querySelectorAll('input, select, textarea'))
-                .map(input => input.value || '')
-                .join(' ');
-            return `${row.innerText} ${inputText}`.toLowerCase();
-        }
+        const gameObjectName = /*[[${gameObject.name}]]*/ '';
+        const primaryGameObjectId = /*[[${primaryGameObjectId}]]*/ null;
 
         document.getElementById('parameter-value-search').addEventListener('input', function(event) {
             const query = event.target.value.trim().toLowerCase();
             document.querySelectorAll('#parameter-value-table-body tr').forEach(row => {
-                row.style.display = getRowSearchText(row).includes(query) ? '' : 'none';
+                row.style.display = row.innerText.toLowerCase().includes(query)
+                    || Array.from(row.querySelectorAll('input')).some(input => input.value.includes(query))
+                    ? ''
+                    : 'none';
             });
         });
 
-        async function postSync(url) {
-            try {
-                const response = await fetch(url, { method: 'POST' });
-                const message = await response.text();
-                alert(message || (response.ok ? 'Sync completed.' : 'Sync failed.'));
-                if (response.ok) {
-                    window.location.reload();
-                }
-            } catch (error) {
-                alert(`Sync failed: ${error.message}`);
+        document.getElementById('save-values').addEventListener('click', async function() {
+            const updates = Array.from(document.querySelectorAll('.editable-param'))
+                .filter(input => input.value.trim() !== (input.dataset.initialValue || ''))
+                .map(input => ({
+                    gameObjectName: gameObjectName,
+                    parameterName: input.dataset.paramName,
+                    value: input.value.trim() === '' ? null : Number(input.value),
+                    db: input.dataset.db
+                }));
+            if (updates.length === 0) {
+                alert('No changes to save.');
+                return;
             }
-        }
-
-        document.getElementById('addParameterValueForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = {
-                parameterId: formData.get('parameterId'),
-                value: formData.get('value')
-            };
-
-            fetch(`/api/admin/game-objects/${gameObjectId}/parameter-values?db=${selectedDb}`, {
+            const response = await fetch('/api/admin/spread-sheets/game-objects/by-name', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                }
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updates)
             });
-        });
-
-        document.querySelectorAll('.update-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const id = formData.get('id');
-                const data = {
-                    value: formData.get('value')
-                };
-
-                fetch(`/api/admin/parameter-values/${id}?db=${selectedDb}`,
-                    {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
-            });
-        });
-
-        document.querySelectorAll('.delete-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const id = formData.get('id');
-
-                fetch(`/api/admin/parameter-values/${id}?db=${selectedDb}`,
-                    {
-                    method: 'DELETE'
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
-            });
+            alert(await response.text());
+            if (response.ok) {
+                window.location.reload();
+            }
         });
 
         const addTagForm = document.getElementById('addTagForm');
         if (addTagForm) {
-            addTagForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            const form = event.target;
-            const formData = new FormData(form);
-            const tagId = formData.get('tagId');
-
-            fetch(`/api/admin/game-objects/${gameObjectId}/tags`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tagId: tagId })
-            }).then(response => {
+            addTagForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const tagId = new FormData(event.target).get('tagId');
+                const response = await fetch(`/api/admin/game-objects/${primaryGameObjectId}/tags`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({tagId: tagId})
+                });
                 if (response.ok) {
                     window.location.reload();
                 }
             });
-            });
         }
 
-        document.querySelectorAll('.remove-tag-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const tagId = formData.get('tagId');
-
-                fetch(`/api/admin/game-objects/${gameObjectId}/tags/${tagId}`, {
-                    method: 'DELETE'
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
+        document.querySelectorAll('.remove-tag-button').forEach(button => {
+            button.addEventListener('click', async function() {
+                const response = await fetch(
+                    `/api/admin/game-objects/${primaryGameObjectId}/tags/${button.dataset.tagId}`,
+                    {method: 'DELETE'}
+                );
+                if (response.ok) {
+                    window.location.reload();
+                }
             });
         });
-
-        document.getElementById('sync-values-to-secondary').addEventListener('click', function() {
-            if (!confirm('Sync prod parameter values to dev DB?')) {
-                return;
-            }
-            postSync('/api/admin/parameter-values/sync-to-secondary');
-        });
-
-        document.getElementById('sync-values-to-primary').addEventListener('click', function() {
-            if (!confirm('Sync dev parameter values to prod DB?')) {
-                return;
-            }
-            postSync('/api/admin/parameter-values/sync-to-primary');
-        });
-        /*]]>*/
     </script>
 </div>
-
 </body>
 </html>
