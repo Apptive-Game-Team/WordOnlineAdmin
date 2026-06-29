@@ -22,6 +22,9 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -189,7 +192,10 @@ public class ParameterService {
         Parameter parameter = parameterRepository.findById(parameterId)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter"));
 
-        ParameterValue parameterValue = new ParameterValue(value, gameObject, parameter);
+        ParameterValue parameterValue = gameObject.getParameterValue(parameter.getName())
+                .orElseGet(() -> parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.getId(), parameter.getId())
+                        .orElseGet(() -> new ParameterValue(value, gameObject, parameter)));
+        parameterValue.setValue(value);
         parameterValueRepository.save(parameterValue);
         syncSecondary(syncSecondary, service -> service.upsertParameterValue(gameObject.getName(), parameter.getName(), value));
     }
@@ -227,6 +233,7 @@ public class ParameterService {
     public void deleteParameterValue(Long parameterValueId, boolean syncSecondary) {
         ParameterValue parameterValue = parameterValueRepository.findById(parameterValueId)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter Value"));
+        parameterValue.getGameObject().removeParameterValue(parameterValue);
         parameterValueRepository.delete(parameterValue);
         syncSecondary(syncSecondary, service -> service.deleteParameterValue(
                 parameterValue.getGameObject().getName(),
@@ -278,8 +285,9 @@ public class ParameterService {
         Parameter parameter = parameterRepository.findByName(parameterName)
                 .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter name: " + parameterName));
 
-        ParameterValue parameterValue = parameterValueRepository.findByGameObjectAndParameter(gameObject, parameter)
-                .orElse(new ParameterValue(value, gameObject, parameter));
+        ParameterValue parameterValue = gameObject.getParameterValue(parameterName)
+                .orElseGet(() -> parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.getId(), parameter.getId())
+                        .orElseGet(() -> new ParameterValue(value, gameObject, parameter)));
 
         parameterValue.setValue(value);
         parameterValueRepository.save(parameterValue);
@@ -292,35 +300,91 @@ public class ParameterService {
             Double value,
             boolean secondary
     ) {
+        log.info("[ParameterService.upsertParameterValue] START: gameObjectName='{}', parameterName='{}', value={}, secondary={}",
+                gameObjectName, parameterName, value, secondary);
         if (secondary) {
-            secondaryParameterSyncService.orElseThrow()
-                    .upsertParameterValue(gameObjectName, parameterName, value);
+            log.info("  -> Delegating to secondaryParameterSyncService");
+            try {
+                secondaryParameterSyncService.orElseThrow()
+                        .upsertParameterValue(gameObjectName, parameterName, value);
+                log.info("  -> Secondary upsert completed successfully");
+            } catch (Exception e) {
+                log.error("  -> Secondary upsert FAILED: {}", e.getMessage(), e);
+                throw e;
+            }
             return;
         }
 
+        log.info("  -> Fetching GameObject & Parameter from Primary Repository");
         Optional<GameObject> gameObject = gameObjectRepository.findByName(gameObjectName);
         Optional<Parameter> parameter = parameterRepository.findByName(parameterName);
+        log.info("  -> Repository lookup complete: gameObjectPresent={}, parameterPresent={}",
+                gameObject.isPresent(), parameter.isPresent());
 
         if (value == null) {
+            log.info("  -> Value is null. Performing DELETE if exists.");
             if (gameObject.isEmpty() || parameter.isEmpty()) {
+                log.info("  -> GameObject or Parameter absent. Nothing to delete.");
                 return;
             }
-            parameterValueRepository.findByGameObjectAndParameter(gameObject.get(), parameter.get())
-                    .ifPresent(parameterValueRepository::delete);
+            parameterValueRepository.findByGameObjectIdAndParameterId(gameObject.get().getId(), parameter.get().getId())
+                    .ifPresentOrElse(
+                            val -> {
+                                gameObject.get().removeParameterValue(val);
+                                parameterValueRepository.delete(val);
+                                log.info("  -> Deleted ParameterValue successfully");
+                            },
+                            () -> log.info("  -> ParameterValue not found in DB. Nothing to delete.")
+                    );
             return;
         }
 
+        log.info("  -> Preparing target GameObject: currentPresent={}", gameObject.isPresent());
         GameObject targetGameObject = gameObject.orElseGet(
-                () -> gameObjectRepository.save(new GameObject(gameObjectName))
+                () -> {
+                    GameObject newGo = gameObjectRepository.save(new GameObject(gameObjectName));
+                    log.info("    -> Created new GameObject in Primary DB: id={}, name='{}'", newGo.getId(), newGo.getName());
+                    return newGo;
+                }
         );
+        log.info("  -> Preparing target Parameter: currentPresent={}", parameter.isPresent());
         Parameter targetParameter = parameter.orElseGet(
-                () -> parameterRepository.save(new Parameter(parameterName))
+                () -> {
+                    Parameter newParam = parameterRepository.save(new Parameter(parameterName));
+                    log.info("    -> Created new Parameter in Primary DB: id={}, name='{}'", newParam.getId(), newParam.getName());
+                    return newParam;
+                }
         );
-        ParameterValue parameterValue = parameterValueRepository
-                .findByGameObjectAndParameter(targetGameObject, targetParameter)
-                .orElseGet(() -> new ParameterValue(value, targetGameObject, targetParameter));
-        parameterValue.setValue(value);
-        parameterValueRepository.save(parameterValue);
+
+        log.info("  -> Saving ParameterValue in Primary DB (resolving existing value)");
+        ParameterValue parameterValue = targetGameObject.getParameterValue(parameterName)
+                .map(val -> {
+                    log.info("    -> Found existing ParameterValue in targetGameObject memory: value={}, updating to {}", val.getValue(), value);
+                    val.setValue(value);
+                    return val;
+                })
+                .orElseGet(() -> {
+                    log.info("    -> ParameterValue not found in memory. Checking repository findByGameObjectIdAndParameterId");
+                    return parameterValueRepository
+                            .findByGameObjectIdAndParameterId(targetGameObject.getId(), targetParameter.getId())
+                            .map(val -> {
+                                log.info("    -> Found existing ParameterValue in repository: value={}, updating to {}", val.getValue(), value);
+                                val.setValue(value);
+                                return val;
+                            })
+                            .orElseGet(() -> {
+                                log.info("    -> Creating brand new ParameterValue in Primary DB: value={}", value);
+                                return new ParameterValue(value, targetGameObject, targetParameter);
+                            });
+                });
+
+        try {
+            ParameterValue saved = parameterValueRepository.save(parameterValue);
+            log.info("  -> Primary DB upsert COMPLETE: ParameterValue id={}", saved.getId());
+        } catch (Exception e) {
+            log.error("  -> Primary DB upsert FAILED: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     public ParametersDto getParameters() {

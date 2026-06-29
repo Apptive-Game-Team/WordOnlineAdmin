@@ -105,11 +105,46 @@
 
                 <!-- Action Buttons -->
                 <div class="mt-4 text-center">
-                    <a th:href="@{/admin/invalidate-cache}" class="btn btn-primary">
+                    <a th:href="@{/admin/invalidate-cache}" class="btn btn-primary mr-2">
                         🔄 Invalidate Cache
                     </a>
+                    <button type="button" id="btn-grant-default-contents-primary" class="btn btn-success mr-2">
+                        🎁 Grant Defaults (Prod)
+                    </button>
+                    <button type="button" id="btn-grant-default-contents-secondary" class="btn btn-warning" 
+                            th:if="${secondaryDatabaseEnabled}">
+                        🎁 Grant Defaults (Dev)
+                    </button>
                 </div>
             </div>
         </div>
+
+        <script th:inline="javascript">
+            document.getElementById('btn-grant-default-contents-primary').addEventListener('click', () => {
+                grantDefaultContents('primary');
+            });
+            const secondaryBtn = document.getElementById('btn-grant-default-contents-secondary');
+            if (secondaryBtn) {
+                secondaryBtn.addEventListener('click', () => {
+                    grantDefaultContents('secondary');
+                });
+            }
+
+            async function grantDefaultContents(db) {
+                if (!confirm(`Are you sure you want to grant all default adventures and magics to all users in ${db === 'primary' ? 'Prod' : 'Dev'}?`)) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`/api/admin/grant-default-contents?db=${db}`, { method: 'POST' });
+                    const message = await response.text();
+                    alert(message);
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                } catch (error) {
+                    alert(`Failed to grant contents: ${error.message}`);
+                }
+            }
+        </script>
     </body>
 </html>

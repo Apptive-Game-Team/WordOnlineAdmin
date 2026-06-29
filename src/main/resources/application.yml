@@ -28,3 +28,13 @@ spring:
       hibernate:
         show_sql: true
         format_sql: true
+
+logging:
+  level:
+    root: INFO
+    com.wordonline.admin: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.transaction: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
