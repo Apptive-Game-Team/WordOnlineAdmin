@@ -11,4 +11,6 @@ public interface ParameterRepository extends JpaRepository<Parameter, Long> {
     Optional<Parameter> findByName(String name);
 
     List<Parameter> findAllByNameIn(Collection<String> names);
+
+    List<Parameter> findAllByOrderByNameAsc();
 }

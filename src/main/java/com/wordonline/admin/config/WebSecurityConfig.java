@@ -35,7 +35,10 @@ public class WebSecurityConfig {
                                             "/logout",
                                             "/css/**",
                                             "/js/**",
-                                            "/healthcheck")
+                                            "/healthcheck",
+                                            "/error",
+                                            "/favicon.ico",
+                                            "/.well-known/**")
                                     .permitAll()
                                     .anyRequest().authenticated();
                         }

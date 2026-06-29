@@ -11,6 +11,7 @@ import java.util.Optional;
 
 public interface ParameterValueRepository extends JpaRepository<ParameterValue, Long> {
     Optional<ParameterValue> findByGameObjectAndParameter(GameObject gameObject, Parameter parameter);
+    Optional<ParameterValue> findByGameObjectIdAndParameterId(Long gameObjectId, Long parameterId);
 
     @Query("select pv from ParameterValue pv join fetch pv.gameObject join fetch pv.parameter")
     List<ParameterValue> findAllWithGameObjectAndParameter();

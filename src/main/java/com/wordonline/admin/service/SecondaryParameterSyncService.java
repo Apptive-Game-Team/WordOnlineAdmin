@@ -15,6 +15,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @ConditionalOnBean(name = "secondaryJdbcTemplate")
 @RequiredArgsConstructor
@@ -221,16 +224,21 @@ public class SecondaryParameterSyncService {
     }
 
     public void upsertParameterValue(String gameObjectName, String parameterName, Double value) {
+        log.info("[SecondaryParameterSyncService.upsertParameterValue] START: gameObjectName='{}', parameterName='{}', value={}",
+                gameObjectName, parameterName, value);
         if (value == null) {
+            log.info("  -> Value is null. Delegating to deleteParameterValueIfPresent");
             deleteParameterValueIfPresent(gameObjectName, parameterName);
             return;
         }
 
+        log.info("  -> Ensuring GameObject and Parameter exist in secondary DB");
         ensureGameObject(gameObjectName);
         ensureParameter(parameterName);
 
         Long gameObjectId = findGameObjectId(gameObjectName);
         Long parameterId = findParameterId(parameterName);
+        log.info("  -> Resolved IDs in secondary DB: gameObjectId={}, parameterId={}", gameObjectId, parameterId);
 
         List<Long> existingIds = secondaryJdbcTemplate.query(
                 "select id from parameter_values where game_object_id = ? and parameter_id = ?",
@@ -240,12 +248,19 @@ public class SecondaryParameterSyncService {
         );
 
         if (existingIds.isEmpty()) {
-            secondaryJdbcTemplate.update(
-                    "insert into parameter_values (value, game_object_id, parameter_id) values (?, ?, ?)",
-                    value,
-                    gameObjectId,
-                    parameterId
-            );
+            log.info("  -> No existing ParameterValue found. Inserting new record in secondary DB");
+            try {
+                secondaryJdbcTemplate.update(
+                        "insert into parameter_values (value, game_object_id, parameter_id) values (?, ?, ?)",
+                        value,
+                        gameObjectId,
+                        parameterId
+                );
+                log.info("  -> Secondary DB INSERT successful");
+            } catch (Exception e) {
+                log.error("  -> Secondary DB INSERT failed: {}", e.getMessage(), e);
+                throw e;
+            }
             return;
         }
 

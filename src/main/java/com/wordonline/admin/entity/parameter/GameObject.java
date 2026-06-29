@@ -36,6 +36,10 @@ public class GameObject {
         parameterValues.add(parameterValue);
     }
 
+    public void removeParameterValue(ParameterValue parameterValue) {
+        parameterValues.remove(parameterValue);
+    }
+
     public Optional<ParameterValue> getParameterValue(String parameterName) {
         return parameterValues.stream()
                 .filter(parameterValue -> parameterValue.getParameter().getName().equals(parameterName))

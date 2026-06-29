@@ -486,4 +486,36 @@ public class SecondaryAdminDataService {
                 (rs, rowNum) -> new MagicCardRow(rs.getLong("id"), rs.getLong("magic_id"), rs.getLong("card_id"))
         );
     }
+
+    public void grantDefaultContents() {
+        // 1. Grant default magics
+        String grantMagicsSql = """
+            INSERT INTO user_magics(user_id, magic_id)
+            SELECT u.id, m.id
+            FROM users u, magics m
+            WHERE m.access_type = 'DEFAULT' AND
+                NOT EXISTS(
+                    SELECT 1
+                    FROM user_magics um
+                    WHERE um.user_id = u.id AND um.magic_id = m.id
+                )
+            """;
+        jdbcTemplate.update(grantMagicsSql);
+
+        // 2. Grant free adventures (scenarios)
+        String grantAdventuresSql = """
+            INSERT INTO user_scenarios(user_id, scenario_id)
+            SELECT u.id, s.id
+            FROM users u, scenarios s
+            JOIN stages st ON s.stage_id = st.id
+            JOIN adventures a ON st.adventure_id = a.id
+            WHERE a.access_type = 'FREE' AND
+                NOT EXISTS(
+                    SELECT 1
+                    FROM user_scenarios us
+                    WHERE us.user_id = u.id AND us.scenario_id = s.id
+                )
+            """;
+        jdbcTemplate.update(grantAdventuresSql);
+    }
 }

@@ -27,6 +27,9 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -214,14 +217,29 @@ public class SpreadSheetService {
 
     @Transactional
     public void batchUpdateParametersByName(List<SpreadSheetApiController.NamedParameterUpdateDto> updates) {
-        for (SpreadSheetApiController.NamedParameterUpdateDto update : updates) {
-            parameterService.upsertParameterValue(
-                    update.gameObjectName(),
-                    update.parameterName(),
-                    update.value(),
-                    "secondary".equalsIgnoreCase(update.db())
-            );
+        log.info("[SpreadSheetService.batchUpdateParametersByName] Process started: updatesCount={}", updates != null ? updates.size() : 0);
+        if (updates == null || updates.isEmpty()) {
+            log.info("[SpreadSheetService.batchUpdateParametersByName] Empty updates list. Exiting.");
+            return;
         }
+        for (int i = 0; i < updates.size(); i++) {
+            SpreadSheetApiController.NamedParameterUpdateDto update = updates.get(i);
+            log.info("  -> Processing item {}/{}: name='{}', param='{}', val={}, db='{}'",
+                    i + 1, updates.size(), update.gameObjectName(), update.parameterName(), update.value(), update.db());
+            try {
+                parameterService.upsertParameterValue(
+                        update.gameObjectName(),
+                        update.parameterName(),
+                        update.value(),
+                        "secondary".equalsIgnoreCase(update.db())
+                );
+                log.info("  -> Item {}/{} processed successfully", i + 1, updates.size());
+            } catch (Exception e) {
+                log.error("  -> Item {}/{} failed: {}", i + 1, updates.size(), e.getMessage(), e);
+                throw e;
+            }
+        }
+        log.info("[SpreadSheetService.batchUpdateParametersByName] All items processed successfully");
     }
 
     @Transactional

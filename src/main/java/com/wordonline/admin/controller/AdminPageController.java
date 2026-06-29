@@ -31,6 +31,7 @@ public class AdminPageController {
     @GetMapping("/")
     public String index(Model model) {
         model.addAttribute("servers", serverService.getAllServers());
+        model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
         return "index";
     }
 
@@ -74,6 +75,7 @@ public class AdminPageController {
         );
         model.addAttribute("primaryGameObjectId", primaryGameObject.map(GameObject::getId).orElse(null));
         model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
+        model.addAttribute("parameters", parameterRepository.findAllByOrderByNameAsc());
         return "admin-parameter-value";
     }
 
