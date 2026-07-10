@@ -4,52 +4,68 @@
       layout:decorate="~{layout}">
 
 <head>
-    <title>Admin - Parameter Management</title>
+    <title>Admin - Game Object Comparison</title>
 </head>
 
 <body>
-
 <div layout:fragment="content">
     <div class="container">
-        <h1>Game Object and Parameter Management</h1>
+        <h1>Game Object Deploy / Dev Comparison</h1>
 
-        <!-- GameObject Management -->
         <div class="card mt-4">
-            <div class="card-header">
-                <h2>Game Objects</h2>
-            </div>
+            <div class="card-header"><h2>Game Objects</h2></div>
             <div class="card-body">
                 <form id="createGameObjectForm" class="form-inline">
-                    <div class="form-group mb-2">
-                        <label for="gameObjectName" class="sr-only">Name</label>
-                        <input type="text" class="form-control" id="gameObjectName" name="name" placeholder="New Game Object Name">
-                    </div>
-                    <button type="submit" class="btn btn-primary mb-2 ml-2">Create GameObject</button>
+                    <input type="text" class="form-control" name="name"
+                           placeholder="New Game Object Name" required>
+                    <select class="form-control ml-2" name="db">
+                        <option value="primary">Deploy</option>
+                        <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary ml-2">Create</button>
                 </form>
+
+                <div class="form-group mt-3">
+                    <label for="game-object-search">Search</label>
+                    <input type="text" class="form-control" id="game-object-search"
+                           placeholder="Search by name">
+                </div>
 
                 <table class="table table-striped mt-3">
                     <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
-                        <th>Actions</th>
+                        <th>Deploy</th>
+                        <th>Dev</th>
+                        <th>Parameters</th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="game-object-table-body">
                     <tr th:each="gameObject : ${gameObjects}">
-                        <td th:text="${gameObject.id}"></td>
                         <td th:text="${gameObject.name}"></td>
                         <td>
-                            <form class="d-inline update-form">
-                                <input type="hidden" name="id" th:value="${gameObject.id}">
-                                <input type="text" name="name" th:value="${gameObject.name}" class="form-control d-inline w-auto">
+                            <span th:if="${!gameObject.primaryPresent}" class="text-muted">N/A</span>
+                            <form th:if="${gameObject.primaryPresent}" class="database-form"
+                                  data-db="primary" th:attr="data-current-name=${gameObject.name}">
+                                <input type="text" name="name" th:value="${gameObject.name}"
+                                       class="form-control d-inline w-auto">
                                 <button type="submit" class="btn btn-sm btn-info">Update</button>
+                                <button type="button" class="btn btn-sm btn-danger delete-button">Delete</button>
                             </form>
-                            <form class="d-inline delete-form">
-                                <input type="hidden" name="id" th:value="${gameObject.id}">
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </td>
+                        <td>
+                            <span th:if="${!gameObject.secondaryPresent}" class="text-muted">N/A</span>
+                            <form th:if="${gameObject.secondaryPresent}" class="database-form"
+                                  data-db="secondary" th:attr="data-current-name=${gameObject.name}">
+                                <input type="text" name="name" th:value="${gameObject.name}"
+                                       class="form-control d-inline w-auto">
+                                <button type="submit" class="btn btn-sm btn-info">Update</button>
+                                <button type="button" class="btn btn-sm btn-danger delete-button">Delete</button>
                             </form>
-                            <a th:href="@{/admin/game-object/{gameObjectId}(gameObjectId=${gameObject.id})}" class="btn btn-sm btn-primary">Manage Parameters</a>
+                        </td>
+                        <td>
+                            <a th:href="@{/admin/game-object/by-name/{name}(name=${gameObject.name})}"
+                               class="btn btn-sm btn-primary">Compare Parameters</a>
                         </td>
                     </tr>
                     </tbody>
@@ -59,67 +75,65 @@
     </div>
 
     <script>
-        document.getElementById('createGameObjectForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = {
-                name: formData.get('name')
-            };
+        document.getElementById('game-object-search').addEventListener('input', function(event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll('#game-object-table-body tr').forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
 
-            fetch('/api/admin/game-objects', {
+        document.getElementById('createGameObjectForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const data = new FormData(event.target);
+            const response = await fetch(`/api/admin/game-objects/by-name?db=${data.get('db')}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            }).then(response => {
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: data.get('name'), parameterValues: []})
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert(await response.text());
+            }
+        });
+
+        document.querySelectorAll('.database-form').forEach(form => {
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const currentName = form.dataset.currentName;
+                const newName = new FormData(form).get('name');
+                const response = await fetch(
+                    `/api/admin/game-objects/by-name/${encodeURIComponent(currentName)}?db=${form.dataset.db}`,
+                    {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({name: newName, parameterValues: []})
+                    }
+                );
                 if (response.ok) {
                     window.location.reload();
+                } else {
+                    alert(await response.text());
                 }
             });
-        });
 
-        document.querySelectorAll('.update-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const id = formData.get('id');
-                const data = {
-                    name: formData.get('name')
-                };
-
-                fetch(`/api/admin/game-objects/${id}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
-            });
-        });
-
-        document.querySelectorAll('.delete-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const id = formData.get('id');
-
-                fetch(`/api/admin/game-objects/${id}`, {
-                    method: 'DELETE'
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
+            form.querySelector('.delete-button').addEventListener('click', async function() {
+                const currentName = form.dataset.currentName;
+                if (!confirm(`Delete ${currentName} from ${form.dataset.db}?`)) {
+                    return;
+                }
+                const response = await fetch(
+                    `/api/admin/game-objects/by-name/${encodeURIComponent(currentName)}?db=${form.dataset.db}`,
+                    {method: 'DELETE'}
+                );
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert(await response.text());
+                }
             });
         });
     </script>
 </div>
-
 </body>
 </html>

@@ -4,98 +4,110 @@
       layout:decorate="~{layout}">
 
 <head>
-    <title>Admin - Parameter Value Management</title>
+    <title>Admin - Game Object Parameter Comparison</title>
 </head>
 
 <body>
-
 <div layout:fragment="content">
     <div class="container">
-        <h1 th:text="|Parameter Values for ${gameObject.name}|"></h1>
+        <h1 th:text="|${gameObject.name} Parameters|"></h1>
 
-        <!-- ParameterValue Management -->
+        <div class="mb-3">
+            <span class="badge badge-success" th:if="${gameObject.primaryPresent}">Deploy object exists</span>
+            <span class="badge badge-secondary" th:if="${!gameObject.primaryPresent}">Deploy object N/A</span>
+            <span class="badge badge-success" th:if="${gameObject.secondaryPresent}">Dev object exists</span>
+            <span class="badge badge-secondary" th:if="${!gameObject.secondaryPresent}">Dev object N/A</span>
+        </div>
+
         <div class="card mt-4">
-            <div class="card-header">
-                <h3 th:text="|Parameter Values for ${gameObject.name}|"></h3>
-            </div>
+            <div class="card-header"><h3>Parameter Values</h3></div>
             <div class="card-body">
-                <form id="addParameterValueForm" class="form-inline">
-                    <div class="form-group mb-2">
+                <div class="form-group">
+                    <label for="parameter-value-search">Search</label>
+                    <input type="text" class="form-control" id="parameter-value-search"
+                           placeholder="Search parameter or value">
+                </div>
+
+                <form id="addParameterValueForm" class="form-inline mt-3 mb-3">
+                    <div class="form-group mb-2 mr-3">
                         <label for="parameterId" class="sr-only">Parameter</label>
                         <select class="form-control" id="parameterId" name="parameterId">
                             <option th:each="parameter : ${parameters}" th:value="${parameter.id}" th:text="${parameter.name}"></option>
                         </select>
                     </div>
-                    <div class="form-group mx-sm-3 mb-2">
+                    <div class="form-group mb-2 mr-3">
                         <label for="parameterValue" class="sr-only">Value</label>
-                        <input type="number" step="0.01" class="form-control" id="parameterValue" name="value" placeholder="Value">
+                        <input type="number" step="any" class="form-control" id="parameterValue" name="value" placeholder="Value">
+                    </div>
+                    <div class="form-check mb-2 mr-3" th:if="${secondaryDatabaseEnabled}">
+                        <input class="form-check-input" type="checkbox" id="syncSecondary" name="syncSecondary" value="true" checked>
+                        <label class="form-check-label" for="syncSecondary">
+                            Sync to Dev
+                        </label>
                     </div>
                     <button type="submit" class="btn btn-primary mb-2">Add Parameter Value</button>
                 </form>
 
-                <table class="table table-striped mt-3">
+                 <table class="table table-striped mt-3">
                     <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Parameter</th>
-                        <th>Value</th>
+                        <th>Deploy Value</th>
+                        <th>Dev Value</th>
                         <th>Actions</th>
                     </tr>
                     </thead>
-                    <tbody>
-                    <tr th:each="paramValue : ${gameObject.parameterValues}">
-                        <td th:text="${paramValue.id}"></td>
-                        <td th:text="${paramValue.parameter.name}"></td>
-                        <td th:text="${paramValue.value}"></td>
+                    <tbody id="parameter-value-table-body">
+                    <tr th:each="parameter : ${gameObject.parameters}">
+                        <td th:text="${parameter.name}"></td>
                         <td>
-                            <form class="d-inline update-form">
-                                <input type="hidden" name="id" th:value="${paramValue.id}">
-                                <input type="number" step="0.01" name="value" th:value="${paramValue.value}" class="form-control d-inline w-auto">
-                                <button type="submit" class="btn btn-sm btn-info">Update</button>
-                            </form>
-                            <form class="d-inline delete-form">
-                                <input type="hidden" name="id" th:value="${paramValue.id}">
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
+                            <input th:if="${parameter.primaryPresent}" type="number" step="any" class="form-control editable-param"
+                                   data-db="primary"
+                                   th:attr="data-param-name=${parameter.name},
+                                            data-initial-value=${parameter.primaryValue},
+                                            data-present=true"
+                                   th:value="${parameter.primaryValue}" placeholder="N/A">
+                            <span th:if="${!parameter.primaryPresent}" class="text-muted">Value N/A</span>
+                        </td>
+                        <td>
+                            <input th:if="${parameter.secondaryPresent}" type="number" step="any" class="form-control editable-param"
+                                   data-db="secondary"
+                                   th:disabled="${!secondaryDatabaseEnabled}"
+                                   th:attr="data-param-name=${parameter.name},
+                                            data-initial-value=${parameter.secondaryValue},
+                                            data-present=true"
+                                   th:value="${parameter.secondaryValue}" placeholder="N/A">
+                            <span th:if="${!parameter.secondaryPresent}" class="text-muted">Value N/A</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger delete-param-btn"
+                                    th:attr="data-param-name=${parameter.name}">
+                                Remove
+                            </button>
                         </td>
                     </tr>
                     </tbody>
                 </table>
+                <button id="save-values" class="btn btn-success">Save Changes</button>
             </div>
         </div>
-        <!-- Tag Management -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h3 th:text="|Tags for ${gameObject.name}|"></h3>
-            </div>
+
+        <div class="card mt-4" th:if="${gameObject.primaryPresent}">
+            <div class="card-header"><h3>Deploy Tags</h3></div>
             <div class="card-body">
                 <form id="addTagForm" class="form-inline">
-                    <div class="form-group mb-2">
-                        <label for="tagId" class="sr-only">Tag</label>
-                        <select class="form-control" id="tagId" name="tagId">
-                            <option th:each="tag : ${tags}" th:value="${tag.id}" th:text="${tag.name}"></option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary mb-2 ml-2">Add Tag</button>
+                    <select class="form-control" id="tagId" name="tagId">
+                        <option th:each="tag : ${tags}" th:value="${tag.id}" th:text="${tag.name}"></option>
+                    </select>
+                    <button type="submit" class="btn btn-primary ml-2">Add Tag</button>
                 </form>
-
                 <table class="table table-striped mt-3">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Tag</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
                     <tbody>
-                    <tr th:each="gameObjectTag : ${gameObject.gameObjectTags}">
-                        <td th:text="${gameObjectTag.tag.id}"></td>
+                    <tr th:each="gameObjectTag : ${gameObjectTags}">
                         <td th:text="${gameObjectTag.tag.name}"></td>
                         <td>
-                            <form class="d-inline remove-tag-form">
-                                <input type="hidden" name="tagId" th:value="${gameObjectTag.tag.id}">
-                                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
-                            </form>
+                            <button type="button" class="btn btn-sm btn-danger remove-tag-button"
+                                    th:attr="data-tag-id=${gameObjectTag.tag.id}">Remove</button>
                         </td>
                     </tr>
                     </tbody>
@@ -105,109 +117,276 @@
     </div>
 
     <script th:inline="javascript">
-        /*<![CDATA[*/
-        const gameObjectId = /*[[${gameObject.id}]]*/ 0;
+        console.log("[JS DEBUG] Script block executed.");
+        const gameObjectName = /*[[${gameObject.name}]]*/ '';
+        const primaryGameObjectId = /*[[${primaryGameObjectId}]]*/ null;
+        console.log("[JS DEBUG] gameObjectName =", gameObjectName, ", primaryGameObjectId =", primaryGameObjectId);
 
-        document.getElementById('addParameterValueForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = {
-                parameterId: formData.get('parameterId'),
-                value: formData.get('value')
-            };
+        const searchInput = document.getElementById('parameter-value-search');
+        console.log("[JS DEBUG] searchInput exists:", !!searchInput);
+        if (searchInput) {
+            searchInput.addEventListener('input', function(event) {
+                const query = event.target.value.trim().toLowerCase();
+                document.querySelectorAll('#parameter-value-table-body tr').forEach(row => {
+                    row.style.display = row.innerText.toLowerCase().includes(query)
+                        || Array.from(row.querySelectorAll('input')).some(input => input.value.includes(query))
+                        ? ''
+                        : 'none';
+                });
+            });
+        }
 
-            fetch(`/api/admin/game-objects/${gameObjectId}/parameter-values`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
+        const saveValuesBtn = document.getElementById('save-values');
+        console.log("[JS DEBUG] saveValuesBtn exists:", !!saveValuesBtn);
+        if (saveValuesBtn) {
+            saveValuesBtn.addEventListener('click', async function() {
+                console.log("[JS DEBUG] save-values button clicked");
+                const updates = Array.from(document.querySelectorAll('.editable-param'))
+                    .filter(input => {
+                        const isChanged = input.value.trim() !== (input.dataset.initialValue || '');
+                        if (isChanged) {
+                            console.log("  -> Detected modified value: paramName =", input.dataset.paramName, ", from =", input.dataset.initialValue, ", to =", input.value);
+                        }
+                        return isChanged;
+                    })
+                    .map(input => ({
+                        gameObjectName: gameObjectName,
+                        parameterName: input.dataset.paramName,
+                        value: input.value.trim() === '' ? null : Number(input.value),
+                        db: input.dataset.db
+                    }));
+                console.log("[JS DEBUG] Gathered updates to save:", updates);
+                if (updates.length === 0) {
+                    alert('No changes to save.');
+                    return;
+                }
+                try {
+                    const response = await fetch('/api/admin/spread-sheets/game-objects/by-name', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updates)
+                    });
+                    const resultText = await response.text();
+                    console.log("[JS DEBUG] save-values API response:", response.status, resultText);
+                    alert(resultText);
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    console.error("[JS DEBUG] Error during save-values fetch:", err);
+                    alert("Error saving values: " + err.message);
+                }
+            });
+        }
+
+        // Filter out already added parameters from the dropdown
+        console.log("[JS DEBUG] Executing dropdown options filtering...");
+        const addedParameterNames = Array.from(document.querySelectorAll('#parameter-value-table-body .editable-param[data-db="primary"]'))
+            .map(input => input.dataset.paramName)
+            .filter(Boolean);
+        console.log("  -> Primary parameter names already present:", addedParameterNames);
+        const selectEl = document.getElementById('parameterId');
+        console.log("[JS DEBUG] selectEl exists:", !!selectEl);
+        if (selectEl) {
+            console.log("  -> Option count BEFORE filtering:", selectEl.options.length);
+            const toRemove = [];
+            for (let i = 0; i < selectEl.options.length; i++) {
+                const option = selectEl.options[i];
+                if (addedParameterNames.includes(option.textContent.trim())) {
+                    toRemove.push(option);
+                }
+            }
+            console.log("  -> Found duplicate options to remove:", toRemove.map(o => o.textContent.trim()));
+            toRemove.forEach(option => option.remove());
+            console.log("  -> Option count AFTER filtering:", selectEl.options.length);
+        }
+
+        const addParameterValueForm = document.getElementById('addParameterValueForm');
+        console.log("[JS DEBUG] addParameterValueForm exists:", !!addParameterValueForm);
+        let isAddFormSubmitting = false;
+        if (addParameterValueForm) {
+            addParameterValueForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                console.log("[JS DEBUG] addParameterValueForm submit event triggered!");
+                if (isAddFormSubmitting) {
+                    console.warn("[JS DEBUG] Double submit blocked.");
+                    return;
+                }
+
+                const submitBtn = event.target.querySelector('button[type="submit"]');
+                try {
+                    isAddFormSubmitting = true;
+                    if (submitBtn) submitBtn.disabled = true;
+
+                    const formData = new FormData(event.target);
+                    const valueStr = formData.get('value');
+                    console.log("  -> formData valueStr:", valueStr);
+                    if (valueStr === null || valueStr.trim() === '') {
+                        alert('Please enter a value for the parameter.');
+                        return;
+                    }
+                    const value = Number(valueStr);
+                    if (isNaN(value)) {
+                        alert('Please enter a valid number.');
+                        return;
+                    }
+                    const syncSecondary = formData.has('syncSecondary');
+                    console.log("  -> Form field parsed: value =", value, ", syncSecondary =", syncSecondary);
+
+                    const selectEl = document.getElementById('parameterId');
+                    if (!selectEl || selectEl.selectedIndex === -1) {
+                        console.warn("  -> No options in select dropdown or none selected!");
+                        alert('No parameter selected or available to add.');
+                        return;
+                    }
+                    const parameterName = selectEl.options[selectEl.selectedIndex].text;
+                    console.log("  -> Target parameterName to add:", parameterName);
+
+                    let response;
+                    if (primaryGameObjectId !== null) {
+                        const parameterId = selectEl.value;
+                        const payload = {
+                            parameterId: Number(parameterId),
+                            value: value,
+                            syncSecondary: syncSecondary
+                        };
+                        console.log("  -> primaryGameObjectId exists. Dispatching POST to /api/admin/game-objects/" + primaryGameObjectId + "/parameter-values, payload:", payload);
+                        response = await fetch('/api/admin/game-objects/' + primaryGameObjectId + '/parameter-values', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(payload)
+                        });
+                    } else {
+                        const updates = [
+                            {
+                                gameObjectName: gameObjectName,
+                                parameterName: parameterName,
+                                value: value,
+                                db: 'primary'
+                            }
+                        ];
+                        if (syncSecondary) {
+                            updates.push({
+                                gameObjectName: gameObjectName,
+                                parameterName: parameterName,
+                                value: value,
+                                db: 'secondary'
+                            });
+                        }
+                        console.log("  -> primaryGameObjectId is null. Dispatching POST to /api/admin/spread-sheets/game-objects/by-name, payload:", updates);
+                        response = await fetch('/api/admin/spread-sheets/game-objects/by-name', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(updates)
+                        });
+                    }
+
+                    const resultText = await response.text();
+                    console.log("  -> Server response status:", response.status, ", body:", resultText);
+                    if (response.ok) {
+                        console.log("  -> Success! Reloading page...");
+                        window.location.reload();
+                    } else {
+                        console.error("  -> Failure! Alerting server message");
+                        alert('Failed to add parameter value: ' + resultText);
+                    }
+                } catch (error) {
+                    console.error("[JS DEBUG] Exception caught in submit handler:", error);
+                    alert('An error occurred while adding parameter value: ' + error.message);
+                } finally {
+                    isAddFormSubmitting = false;
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        const addTagForm = document.getElementById('addTagForm');
+        console.log("[JS DEBUG] addTagForm exists:", !!addTagForm);
+        if (addTagForm) {
+            addTagForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                console.log("[JS DEBUG] addTagForm submit event triggered!");
+                try {
+                    const tagId = new FormData(event.target).get('tagId');
+                    console.log("  -> tagId to add:", tagId);
+                    const response = await fetch('/api/admin/game-objects/' + primaryGameObjectId + '/tags', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({tagId: tagId})
+                    });
+                    console.log("  -> addTag API response:", response.status);
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    console.error("[JS DEBUG] Error adding tag:", err);
+                }
+            });
+        }
+
+        console.log("[JS DEBUG] Registering remove-tag-button click handlers...");
+        document.querySelectorAll('.remove-tag-button').forEach(button => {
+            button.addEventListener('click', async function() {
+                console.log("[JS DEBUG] remove-tag-button clicked: tagId =", button.dataset.tagId);
+                try {
+                    const response = await fetch(
+                        '/api/admin/game-objects/' + primaryGameObjectId + '/tags/' + button.dataset.tagId,
+                        {method: 'DELETE'}
+                    );
+                    console.log("  -> removeTag API response:", response.status);
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    console.error("[JS DEBUG] Error removing tag:", err);
                 }
             });
         });
 
-        document.querySelectorAll('.update-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const id = formData.get('id');
-                const data = {
-                    value: formData.get('value')
-                };
-
-                fetch(`/api/admin/parameter-values/${id}`,
+        console.log("[JS DEBUG] Registering delete-param-btn click handlers...");
+        document.querySelectorAll('.delete-param-btn').forEach(button => {
+            button.addEventListener('click', async function() {
+                const parameterName = button.dataset.paramName;
+                console.log("[JS DEBUG] delete-param-btn clicked: parameterName =", parameterName);
+                if (!confirm('Are you sure you want to delete parameter \'' + parameterName + '\' from ' + gameObjectName + '?')) {
+                    console.log("  -> Cancelled by user confirmation");
+                    return;
+                }
+                const updates = [
                     {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json'
+                        gameObjectName: gameObjectName,
+                        parameterName: parameterName,
+                        value: null,
+                        db: 'primary'
                     },
-                    body: JSON.stringify(data)
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
-            });
-        });
-
-        document.querySelectorAll('.delete-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const id = formData.get('id');
-
-                fetch(`/api/admin/parameter-values/${id}`,
                     {
-                    method: 'DELETE'
-                }).then(response => {
+                        gameObjectName: gameObjectName,
+                        parameterName: parameterName,
+                        value: null,
+                        db: 'secondary'
+                    }
+                ];
+                console.log("  -> Dispatching DELETE updates (value=null) payload:", updates);
+                try {
+                    const response = await fetch('/api/admin/spread-sheets/game-objects/by-name', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(updates)
+                    });
+                    const resultText = await response.text();
+                    console.log("  -> delete param API response:", response.status, resultText);
                     if (response.ok) {
                         window.location.reload();
+                    } else {
+                        alert('Failed to delete parameter: ' + resultText);
                     }
-                });
-            });
-        });
-
-        document.getElementById('addTagForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const form = event.target;
-            const formData = new FormData(form);
-            const tagId = formData.get('tagId');
-
-            fetch(`/api/admin/game-objects/${gameObjectId}/tags`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tagId: tagId })
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
+                } catch (err) {
+                    console.error("[JS DEBUG] Error deleting parameter:", err);
+                    alert('Error deleting parameter: ' + err.message);
                 }
             });
         });
-
-        document.querySelectorAll('.remove-tag-form').forEach(form => {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(form);
-                const tagId = formData.get('tagId');
-
-                fetch(`/api/admin/game-objects/${gameObjectId}/tags/${tagId}`, {
-                    method: 'DELETE'
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    }
-                });
-            });
-        });
-        /*]]>*/
     </script>
 </div>
-
 </body>
 </html>

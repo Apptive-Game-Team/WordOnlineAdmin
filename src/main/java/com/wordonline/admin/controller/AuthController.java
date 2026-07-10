@@ -39,7 +39,7 @@ public class AuthController {
             return "redirect:/";
         } catch (Exception e) {
             log.error("Login failed", e);
-            model.addAttribute("error", "Invalid username or password");
+            model.addAttribute("error", e.getMessage());
             return "login";
         }
     }

@@ -1,7 +1,7 @@
 package com.wordonline.admin.controller;
 
 import com.wordonline.admin.dto.GameObjectDto;
-import com.wordonline.admin.dto.ParameterValueDto;
+import com.wordonline.admin.dto.ParameterValueRequestDto;
 import com.wordonline.admin.service.ParameterService;
 import com.wordonline.admin.service.TagService;
 
@@ -30,6 +30,34 @@ public class GameObjectController {
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
+    @PostMapping("/game-objects/by-name")
+    public ResponseEntity<String> saveGameObjectByName(
+            @RequestBody GameObjectDto dto,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.createGameObject(dto.name(), isSecondary(db));
+        return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
+    }
+
+    @PatchMapping("/game-objects/by-name/{gameObjectName}")
+    public ResponseEntity<String> updateGameObjectByName(
+            @PathVariable String gameObjectName,
+            @RequestBody GameObjectDto dto,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.updateGameObject(gameObjectName, dto.name(), isSecondary(db));
+        return ResponseEntity.ok("Successfully Updated");
+    }
+
+    @DeleteMapping("/game-objects/by-name/{gameObjectName}")
+    public ResponseEntity<String> deleteGameObjectByName(
+            @PathVariable String gameObjectName,
+            @RequestParam(name = "db") String db
+    ) {
+        parameterService.deleteGameObject(gameObjectName, isSecondary(db));
+        return ResponseEntity.ok("Successfully Deleted");
+    }
+
     @PatchMapping("/game-objects/{gameObjectId}")
     public ResponseEntity<String> updateGameObject(
             @PathVariable Long gameObjectId,
@@ -52,27 +80,49 @@ public class GameObjectController {
     @PostMapping("/game-objects/{gameObjectId}/parameter-values")
     public ResponseEntity<String> saveParameterValue(
             @PathVariable Long gameObjectId,
-            @RequestBody ParameterValueDto dto
+            @RequestBody ParameterValueRequestDto dto,
+            @RequestParam(name = "db", defaultValue = "primary") String db
     ) {
-        parameterService.createParameterValue(gameObjectId, dto.parameterId(), dto.value());
+        parameterService.createParameterValue(
+                gameObjectId,
+                dto.parameterId(),
+                dto.value(),
+                isSecondary(db),
+                isSyncRequested(dto.syncSecondary())
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body("Successfully Created");
     }
 
     @PatchMapping("/parameter-values/{parameterValueId}")
     public ResponseEntity<String> updateParameterValue(
             @PathVariable Long parameterValueId,
-            @RequestBody ParameterValueDto dto
+            @RequestBody ParameterValueRequestDto dto,
+            @RequestParam(name = "db", defaultValue = "primary") String db
     ) {
-        parameterService.updateParameterValue(parameterValueId, dto.value());
+        parameterService.updateParameterValue(parameterValueId, dto.value(), isSecondary(db), isSyncRequested(dto.syncSecondary()));
         return ResponseEntity.ok("Successfully Updated");
     }
 
     @DeleteMapping("/parameter-values/{parameterValueId}")
     public ResponseEntity<String> deleteParameterValue(
-            @PathVariable Long parameterValueId
+            @PathVariable Long parameterValueId,
+            @RequestParam(name = "syncSecondary", defaultValue = "false") boolean syncSecondary,
+            @RequestParam(name = "db", defaultValue = "primary") String db
     ) {
-        parameterService.deleteParameterValue(parameterValueId);
+        parameterService.deleteParameterValue(parameterValueId, isSecondary(db), syncSecondary);
         return ResponseEntity.ok("Successfully Deleted");
+    }
+
+    @PostMapping("/parameter-values/sync-to-secondary")
+    public ResponseEntity<String> syncParameterValuesToSecondary() {
+        return ResponseEntity.ok(parameterService.syncParameterValuesToSecondary()
+                .toMessage("Parameter values: Prod -> Dev"));
+    }
+
+    @PostMapping("/parameter-values/sync-to-primary")
+    public ResponseEntity<String> syncParameterValuesToPrimary() {
+        return ResponseEntity.ok(parameterService.syncParameterValuesToPrimary()
+                .toMessage("Parameter values: Dev -> Prod"));
     }
 
     // Manage Tags ==========
@@ -92,5 +142,13 @@ public class GameObjectController {
     ) {
         tagService.removeTagFromGameObject(gameObjectId, tagId);
         return ResponseEntity.ok("Successfully Removed");
+    }
+
+    private boolean isSyncRequested(Boolean syncSecondary) {
+        return Boolean.TRUE.equals(syncSecondary);
+    }
+
+    private boolean isSecondary(String db) {
+        return "secondary".equalsIgnoreCase(db);
     }
 }

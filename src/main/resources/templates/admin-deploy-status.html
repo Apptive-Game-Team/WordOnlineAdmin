@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Deploy Status Management</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Deploy Status Management</h1>
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2>Deploy Statuses</h2>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#createDeployStatusModal">
+                    Create Deploy Status
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped mt-3">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Deploy Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="deployStatus : ${deployStatuses}">
+                        <td th:text="${deployStatus.id}"></td>
+                        <td th:text="${deployStatus.deployType}"></td>
+                        <td th:text="${deployStatus.status}"></td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-info edit-deploy-status-btn"
+                                    th:data-id="${deployStatus.id}"
+                                    th:data-deploy-type="${deployStatus.deployType}"
+                                    th:data-status="${deployStatus.status}"
+                                    data-toggle="modal"
+                                    data-target="#editDeployStatusModal">
+                                Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger delete-deploy-status-btn"
+                                    th:data-id="${deployStatus.id}">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Deploy Status Modal -->
+    <div class="modal fade" id="createDeployStatusModal" tabindex="-1" aria-labelledby="createDeployStatusModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createDeployStatusModalLabel">Create Deploy Status</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createDeployStatusForm">
+                        <div class="mb-3">
+                            <label for="createDeployType" class="form-label">Deploy Type</label>
+                            <input type="text" class="form-control" id="createDeployType" name="deployType" placeholder="e.g. DEV, PROD" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="createStatus" class="form-label">Status</label>
+                            <select class="form-select" id="createStatus" name="status">
+                                <option th:each="sv : ${statusValues}" th:value="${sv}" th:text="${sv}"></option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitCreateDeployStatus()">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Deploy Status Modal -->
+    <div class="modal fade" id="editDeployStatusModal" tabindex="-1" aria-labelledby="editDeployStatusModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDeployStatusModalLabel">Edit Deploy Status</h5>
+                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editDeployStatusForm">
+                        <input type="hidden" id="editDeployStatusId">
+                        <div class="mb-3">
+                            <label for="editDeployType" class="form-label">Deploy Type</label>
+                            <input type="text" class="form-control" id="editDeployType" name="deployType" placeholder="e.g. DEV, PROD" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editStatus" class="form-label">Status</label>
+                            <select class="form-select" id="editStatus" name="status">
+                                <option th:each="sv : ${statusValues}" th:value="${sv}" th:text="${sv}"></option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="submitEditDeployStatus()">Update</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    function submitCreateDeployStatus() {
+        const data = {
+            deployType: document.getElementById('createDeployType').value,
+            status: document.getElementById('createStatus').value
+        };
+        fetch('/api/admin/deploy-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to create deploy status');
+            }
+        });
+    }
+
+    function submitEditDeployStatus() {
+        const id = document.getElementById('editDeployStatusId').value;
+        const data = {
+            deployType: document.getElementById('editDeployType').value,
+            status: document.getElementById('editStatus').value
+        };
+        fetch(`/api/admin/deploy-status/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to update deploy status');
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.edit-deploy-status-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                document.getElementById('editDeployStatusId').value = this.getAttribute('data-id');
+                document.getElementById('editDeployType').value = this.getAttribute('data-deploy-type');
+                document.getElementById('editStatus').value = this.getAttribute('data-status');
+            });
+        });
+
+        document.querySelectorAll('.delete-deploy-status-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                if (confirm('Are you sure you want to delete this deploy status?')) {
+                    fetch(`/api/admin/deploy-status/${id}`, { method: 'DELETE' })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.reload();
+                            } else {
+                                alert('Failed to delete deploy status');
+                            }
+                        });
+                }
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

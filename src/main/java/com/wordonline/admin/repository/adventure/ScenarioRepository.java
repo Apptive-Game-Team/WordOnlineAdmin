@@ -9,4 +9,6 @@ import com.wordonline.admin.entity.adventure.Scenario;
 public interface ScenarioRepository extends JpaRepository<Scenario, Long> {
 
     List<Scenario> findByStageId(Long stageId);
+
+    List<Scenario> findByStageIdOrderByIdAsc(Long stageId);
 }

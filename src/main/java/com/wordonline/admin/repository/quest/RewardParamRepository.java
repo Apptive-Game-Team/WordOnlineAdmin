@@ -9,6 +9,8 @@ import com.wordonline.admin.entity.quest.RewardParam;
 public interface RewardParamRepository extends JpaRepository<RewardParam, Long> {
 
     List<RewardParam> findByQuestId(Long questId);
+
+    List<RewardParam> findByQuestIdOrderByIdAsc(Long questId);
     
     void deleteByQuestId(Long questId);
 }

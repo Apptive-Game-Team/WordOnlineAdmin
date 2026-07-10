@@ -26,8 +26,11 @@ public class SpreadSheetController {
             @RequestParam(value = "tags", required = false) List<String> tags,
             Model model
     ) {
-        model.addAttribute("gameObjects", spreadSheetService.getGameObjects(tags));
+        var gameObjects = spreadSheetService.getGameObjectComparisons(tags);
+        model.addAttribute("gameObjects", gameObjects);
+        model.addAttribute("parameterNames", spreadSheetService.getComparisonParameterNames());
         model.addAttribute("allTags", tagRepository.findAll());
+        model.addAttribute("secondaryDatabaseEnabled", spreadSheetService.hasSecondaryDatabase());
         return "admin-spreadsheet";
     }
 }
