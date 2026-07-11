@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head th:replace="~{layout :: header('Bot Management')}"></head>
+<body>
+<main layout:fragment="content">
+    <h1>Bot Management</h1>
+    <div class="row">
+        <div class="col-lg-7">
+            <table class="table table-striped">
+                <thead><tr><th>User ID</th><th>Name</th><th>Tier</th><th>MMR</th><th>Deck</th><th>Enabled</th></tr></thead>
+                <tbody>
+                <tr th:each="bot : ${bots}">
+                    <td><a th:href="@{/admin/bot/{id}(id=${bot.userId})}" th:text="${bot.userId}"></a></td>
+                    <td th:text="${bot.name}"></td><td th:text="${bot.tier}"></td><td th:text="${bot.mmr}"></td>
+                    <td th:text="${bot.selectedDeckName ?: 'None'}"></td><td th:text="${bot.enabled}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-5">
+            <h2>Create bot</h2>
+            <form method="post" th:action="@{/admin/bot}" th:object="${botForm}">
+                <label class="form-label">Name</label><input class="form-control" th:field="*{name}" required maxlength="50">
+                <label class="form-label mt-2">Tier</label>
+                <select class="form-select" th:field="*{tier}"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}"></option></select>
+                <label class="form-label mt-2">Thinking ms</label><input class="form-control" type="number" min="0" th:field="*{thinkingTimeMs}">
+                <label class="form-label mt-2">Reaction frames</label><input class="form-control" type="number" min="1" th:field="*{reactionIntervalFrames}">
+                <label class="form-label mt-2">Counter aggression</label><input class="form-control" type="number" min="0" max="1" step="0.01" th:field="*{counterAggression}">
+                <label class="form-label mt-2">MMR</label><input class="form-control" type="number" th:field="*{mmr}">
+                <label class="form-label mt-2">Initial deck name</label><input class="form-control" th:field="*{deckName}" required>
+                <button class="btn btn-primary mt-3" type="submit">Create</button>
+            </form>
+        </div>
+    </div>
+</main>
+</body>
+</html>
