@@ -1,29 +1,43 @@
 <!DOCTYPE html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layout}">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
 <head th:replace="~{layout :: header('Bot Management')}"></head>
-<body>
-<main layout:fragment="content">
-    <h1>Bot Management</h1>
+<body><main layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>Bot Deploy / Dev Comparison</h1>
+        <div>
+            <button id="sync-to-secondary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Deploy → Dev</button>
+            <button id="sync-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev → Deploy</button>
+        </div>
+    </div>
+    <div id="sync-result" class="alert mt-2 d-none"></div>
     <div class="row">
-        <div class="col-lg-7">
-            <table class="table table-striped">
-                <thead><tr><th>User ID</th><th>Name</th><th>Tier</th><th>MMR</th><th>Deck</th><th>Enabled</th></tr></thead>
-                <tbody>
-                <tr th:each="bot : ${bots}">
-                    <td><a th:href="@{/admin/bot/{id}(id=${bot.userId})}" th:text="${bot.userId}"></a></td>
-                    <td th:text="${bot.name}"></td><td th:text="${bot.tier}"></td><td th:text="${bot.mmr}"></td>
-                    <td th:text="${bot.selectedDeckName ?: 'None'}"></td><td th:text="${bot.enabled}"></td>
-                </tr>
-                </tbody>
+        <div class="col-lg-8">
+            <table class="table table-bordered align-middle">
+                <thead><tr><th>User ID</th><th>Deploy</th><th>Dev</th></tr></thead>
+                <tbody><tr th:each="comparison : ${bots}">
+                    <td><a th:href="@{/admin/bot/{id}(id=${comparison.userId})}" th:text="${comparison.userId}"></a></td>
+                    <td th:if="${comparison.primaryPresent}">
+                        <strong th:text="${comparison.primary.name}"></strong>
+                        <div th:text="|${comparison.primary.tier} · MMR ${comparison.primary.mmr}|"></div>
+                        <small th:text="|Deck: ${comparison.primary.selectedDeckName ?: 'None'} · Enabled: ${comparison.primary.enabled}|"></small>
+                    </td><td th:unless="${comparison.primaryPresent}" class="text-muted">N/A</td>
+                    <td th:if="${comparison.secondaryPresent}">
+                        <strong th:text="${comparison.secondary.name}"></strong>
+                        <div th:text="|${comparison.secondary.tier} · MMR ${comparison.secondary.mmr}|"></div>
+                        <small th:text="|Deck: ${comparison.secondary.selectedDeckName ?: 'None'} · Enabled: ${comparison.secondary.enabled}|"></small>
+                    </td><td th:unless="${comparison.secondaryPresent}" class="text-muted">N/A</td>
+                </tr></tbody>
             </table>
         </div>
-        <div class="col-lg-5">
+        <div class="col-lg-4">
             <h2>Create bot</h2>
             <form method="post" th:action="@{/admin/bot}" th:object="${botForm}">
-                <label class="form-label">Name</label><input class="form-control" th:field="*{name}" required maxlength="50">
-                <label class="form-label mt-2">Tier</label>
-                <select class="form-select" th:field="*{tier}"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}"></option></select>
+                <label class="form-label">Target DB</label><select class="form-select" name="db">
+                    <option value="primary">Deploy</option><option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                    <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+                </select>
+                <label class="form-label mt-2">Name</label><input class="form-control" th:field="*{name}" required maxlength="50">
+                <label class="form-label mt-2">Tier</label><select class="form-select" th:field="*{tier}"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}"></option></select>
                 <label class="form-label mt-2">Thinking ms</label><input class="form-control" type="number" min="0" th:field="*{thinkingTimeMs}">
                 <label class="form-label mt-2">Reaction frames</label><input class="form-control" type="number" min="1" th:field="*{reactionIntervalFrames}">
                 <label class="form-label mt-2">Counter aggression</label><input class="form-control" type="number" min="0" max="1" step="0.01" th:field="*{counterAggression}">
@@ -33,6 +47,16 @@
             </form>
         </div>
     </div>
-</main>
-</body>
-</html>
+    <script>
+        async function sync(url, message) {
+            if (!confirm(message)) return;
+            const response = await fetch(url, {method: 'POST'});
+            const result = document.getElementById('sync-result');
+            result.className = `alert mt-2 ${response.ok ? 'alert-success' : 'alert-danger'}`;
+            result.textContent = await response.text();
+            if (response.ok) setTimeout(() => location.reload(), 800);
+        }
+        document.getElementById('sync-to-secondary').addEventListener('click', () => sync('/admin/bot/sync-to-secondary', 'Deploy bot 전체를 Dev로 동기화할까요?'));
+        document.getElementById('sync-to-primary').addEventListener('click', () => sync('/admin/bot/sync-to-primary', 'Dev bot 전체를 Deploy로 동기화할까요?'));
+    </script>
+</main></body></html>

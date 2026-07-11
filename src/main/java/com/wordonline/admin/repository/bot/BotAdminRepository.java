@@ -146,6 +146,32 @@ public class BotAdminRepository {
         }
     }
 
+    public void updateSelectedDeckName(long userId, String deckName) {
+        int updated = entityManager.createNativeQuery("""
+                UPDATE decks SET name=:name
+                WHERE id=(SELECT selected_deck_id FROM users WHERE id=:userId)
+                  AND user_id=:userId
+                """).setParameter("name", deckName).setParameter("userId", userId).executeUpdate();
+        if (updated != 1) throw new IllegalArgumentException("Selected deck not found for bot: " + userId);
+    }
+
+    public void replaceSelectedDeckCardsByName(long userId, List<BotDeckCardDto> cards) {
+        Number deckId = (Number) entityManager.createNativeQuery("""
+                SELECT d.id FROM users u JOIN decks d ON d.id=u.selected_deck_id AND d.user_id=u.id
+                WHERE u.id=:userId AND u.id < 0
+                """).setParameter("userId", userId).getSingleResult();
+        entityManager.createNativeQuery("DELETE FROM deck_cards WHERE deck_id=:deckId")
+                .setParameter("deckId", deckId.longValue()).executeUpdate();
+        for (BotDeckCardDto card : cards) {
+            int inserted = entityManager.createNativeQuery("""
+                    INSERT INTO deck_cards(deck_id, card_id, count)
+                    SELECT :deckId, id, :count FROM cards WHERE name::text=:cardName
+                    """).setParameter("deckId", deckId.longValue()).setParameter("cardName", card.cardName())
+                    .setParameter("count", card.count()).executeUpdate();
+            if (inserted != 1) throw new IllegalArgumentException("Card not found: " + card.cardName());
+        }
+    }
+
     public void delete(long userId) {
         entityManager.createNativeQuery("UPDATE users SET selected_deck_id=NULL WHERE id=:id AND id < 0")
                 .setParameter("id", userId).executeUpdate();

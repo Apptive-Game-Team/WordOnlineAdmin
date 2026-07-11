@@ -1,6 +1,7 @@
 package com.wordonline.admin.service;
 
 import com.wordonline.admin.dto.bot.BotAdminDto;
+import com.wordonline.admin.dto.bot.BotDeckCardDto;
 import com.wordonline.admin.dto.bot.BotDeckForm;
 import com.wordonline.admin.dto.bot.BotForm;
 import com.wordonline.admin.repository.bot.BotAdminRepository;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -32,12 +34,21 @@ public class BotAdminService {
     public long create(BotForm form) {
         validate(form);
         long userId = repository.allocateUserId();
+        create(userId, form);
+        return userId;
+    }
+
+    public void validateForm(BotForm form) {
+        validate(form);
+    }
+
+    public void create(long userId, BotForm form) {
+        validate(form);
         requireBotId(userId);
         repository.createUser(userId, form);
         long deckId = repository.createDeck(userId, requireText(form.getDeckName(), "Deck name"));
         repository.selectDeck(userId, deckId);
         repository.createPersona(userId, form);
-        return userId;
     }
 
     public void update(long userId, BotForm form) {
@@ -53,22 +64,65 @@ public class BotAdminService {
 
     public void replaceDeck(long userId, BotDeckForm form) {
         requireBotId(userId);
-        if (form.getCardIds().size() != form.getCounts().size()) {
+        if (!form.getCardNames().isEmpty()) {
+            validateDeckInputs(form.getCardNames(), form.getCounts());
+            repository.updateSelectedDeckName(userId, requireText(form.getDeckName(), "Deck name"));
+            List<BotDeckCardDto> cards = new ArrayList<>();
+            for (int i = 0; i < form.getCardNames().size(); i++) {
+                cards.add(new BotDeckCardDto(0, form.getCardNames().get(i), form.getCounts().get(i)));
+            }
+            repository.replaceSelectedDeckCardsByName(userId, cards);
+            return;
+        }
+        validateDeckInputs(form.getCardIds(), form.getCounts());
+        repository.replaceSelectedDeckCards(userId, form.getCardIds(), form.getCounts());
+    }
+
+    private void validateDeckInputs(List<?> cards, List<Integer> counts) {
+        if (cards.size() != counts.size()) {
             throw new IllegalArgumentException("Every card requires a count");
         }
-        if (form.getCardIds().stream().distinct().count() != form.getCardIds().size()) {
+        if (cards.stream().distinct().count() != cards.size()) {
             throw new IllegalArgumentException("Duplicate cards are not allowed");
         }
-        if (form.getCounts().stream().anyMatch(count -> count == null || count < 1)) {
+        if (counts.stream().anyMatch(count -> count == null || count < 1)) {
             throw new IllegalArgumentException("Card count must be positive");
         }
-        repository.replaceSelectedDeckCards(userId, form.getCardIds(), form.getCounts());
     }
 
     public void delete(long userId) {
         requireBotId(userId);
         repository.setEnabled(userId, false);
         repository.delete(userId);
+    }
+
+    public boolean exists(long userId) {
+        return repository.findByUserId(userId).isPresent();
+    }
+
+    public void upsert(BotAdminDto source) {
+        BotForm form = toForm(source);
+        if (exists(source.userId())) {
+            update(source.userId(), form);
+            repository.updateSelectedDeckName(source.userId(), form.getDeckName());
+        } else {
+            create(source.userId(), form);
+        }
+        repository.replaceSelectedDeckCardsByName(source.userId(), source.cards());
+    }
+
+    private BotForm toForm(BotAdminDto source) {
+        BotForm form = new BotForm();
+        form.setName(source.name());
+        form.setTier(source.tier());
+        form.setThinkingTimeMs(source.thinkingTimeMs());
+        form.setReactionIntervalFrames(source.reactionIntervalFrames());
+        form.setCounterAggression(source.counterAggression());
+        form.setEnabled(source.enabled());
+        form.setMmr(source.mmr());
+        form.setStatus(source.status());
+        form.setDeckName(source.selectedDeckName() == null ? "Bot Deck" : source.selectedDeckName());
+        return form;
     }
 
     private void validate(BotForm form) {
