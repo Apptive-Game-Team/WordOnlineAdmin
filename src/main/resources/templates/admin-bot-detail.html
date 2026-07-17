@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head th:replace="~{layout :: header('Bot Detail')}"></head>
+<body><main layout:fragment="content">
+    <a th:href="@{/admin/bot}">← Bots</a><h1 th:text="|Bot ${bot.userId}|"></h1>
+    <div class="alert alert-success" th:if="${message}" th:text="${message}"></div>
+    <div class="row">
+        <section class="col-lg-6 border-end" th:with="data=${bot.primary}">
+            <h2>Deploy</h2><div th:unless="${bot.primaryPresent}" class="alert alert-secondary">N/A — Deploy에 동기화하거나 새로 생성하세요.</div>
+            <div th:if="${bot.primaryPresent}">
+                <form method="post" th:action="@{/admin/bot/{id}(id=${bot.userId})}">
+                    <label>Apply to</label><select class="form-select" name="db"><option value="primary">Deploy</option><option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option></select>
+                    <label>Name</label><input class="form-control" name="name" th:value="${data.name}" required>
+                    <label>Tier</label><select class="form-select" name="tier"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}" th:selected="${tier == data.tier}"></option></select>
+                    <div class="row"><div class="col"><label>MMR</label><input class="form-control" name="mmr" type="number" th:value="${data.mmr}"></div><div class="col"><label>Status</label><select class="form-select" name="status"><option th:each="s : ${ {'Online','OnMatching','OnPlaying'} }" th:value="${s}" th:text="${s}" th:selected="${s == data.status}"></option></select></div></div>
+                    <label>Thinking ms</label><input class="form-control" name="thinkingTimeMs" type="number" min="0" th:value="${data.thinkingTimeMs}">
+                    <label>Reaction frames</label><input class="form-control" name="reactionIntervalFrames" type="number" min="1" th:value="${data.reactionIntervalFrames}">
+                    <label>Counter aggression</label><input class="form-control" name="counterAggression" type="number" min="0" max="1" step="0.01" th:value="${data.counterAggression}">
+                    <input type="hidden" name="enabled" th:value="${data.enabled}"><input type="hidden" name="deckName" th:value="${data.selectedDeckName}">
+                    <button class="btn btn-primary mt-2">Save</button>
+                </form>
+                <form class="d-inline" method="post" th:action="@{/admin/bot/{id}/enabled/{enabled}(id=${bot.userId},enabled=${!data.enabled},db='primary')}"><button class="btn btn-secondary mt-2" th:text="${data.enabled ? 'Disable' : 'Enable'}"></button></form>
+                <form class="d-inline" method="post" th:action="@{/admin/bot/{id}/delete(id=${bot.userId},db='primary')}" onsubmit="return confirm('Deploy bot을 영구 삭제할까요?')"><button class="btn btn-danger mt-2">Delete Deploy</button></form>
+                <h3 class="mt-4" th:text="|Deck: ${data.selectedDeckName}|"></h3>
+                <form method="post" th:action="@{/admin/bot/{id}/deck(id=${bot.userId})}">
+                    <select class="form-select" name="db"><option value="primary">Deploy</option><option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option></select>
+                    <input class="form-control mt-1" name="deckName" th:value="${data.selectedDeckName}" required>
+                    <table class="table table-sm"><tr th:each="card : ${primaryCards}"><td><input type="checkbox" name="cardNames" th:value="${card.name}" onchange="this.closest('tr').querySelector('[name=counts]').disabled=!this.checked"></td><td th:text="${card.name}"></td><td><input class="form-control" name="counts" type="number" min="1" value="1" disabled></td></tr></table>
+                    <button class="btn btn-primary">Replace deck</button>
+                </form>
+                <ul><li th:each="card : ${data.cards}" th:text="|${card.cardName} × ${card.count}|"></li></ul>
+            </div>
+        </section>
+        <section class="col-lg-6" th:with="data=${bot.secondary}">
+            <h2>Dev</h2><div th:unless="${secondaryDatabaseEnabled}" class="alert alert-warning">Secondary DB not configured</div><div th:if="${secondaryDatabaseEnabled and !bot.secondaryPresent}" class="alert alert-secondary">N/A — Dev로 동기화하거나 새로 생성하세요.</div>
+            <div th:if="${bot.secondaryPresent}">
+                <form method="post" th:action="@{/admin/bot/{id}(id=${bot.userId})}">
+                    <label>Apply to</label><select class="form-select" name="db"><option value="secondary">Dev</option><option value="both">Deploy + Dev</option></select>
+                    <label>Name</label><input class="form-control" name="name" th:value="${data.name}" required>
+                    <label>Tier</label><select class="form-select" name="tier"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}" th:selected="${tier == data.tier}"></option></select>
+                    <div class="row"><div class="col"><label>MMR</label><input class="form-control" name="mmr" type="number" th:value="${data.mmr}"></div><div class="col"><label>Status</label><select class="form-select" name="status"><option th:each="s : ${ {'Online','OnMatching','OnPlaying'} }" th:value="${s}" th:text="${s}" th:selected="${s == data.status}"></option></select></div></div>
+                    <label>Thinking ms</label><input class="form-control" name="thinkingTimeMs" type="number" min="0" th:value="${data.thinkingTimeMs}">
+                    <label>Reaction frames</label><input class="form-control" name="reactionIntervalFrames" type="number" min="1" th:value="${data.reactionIntervalFrames}">
+                    <label>Counter aggression</label><input class="form-control" name="counterAggression" type="number" min="0" max="1" step="0.01" th:value="${data.counterAggression}">
+                    <input type="hidden" name="enabled" th:value="${data.enabled}"><input type="hidden" name="deckName" th:value="${data.selectedDeckName}">
+                    <button class="btn btn-primary mt-2">Save</button>
+                </form>
+                <form class="d-inline" method="post" th:action="@{/admin/bot/{id}/enabled/{enabled}(id=${bot.userId},enabled=${!data.enabled},db='secondary')}"><button class="btn btn-secondary mt-2" th:text="${data.enabled ? 'Disable' : 'Enable'}"></button></form>
+                <form class="d-inline" method="post" th:action="@{/admin/bot/{id}/delete(id=${bot.userId},db='secondary')}" onsubmit="return confirm('Dev bot을 영구 삭제할까요?')"><button class="btn btn-danger mt-2">Delete Dev</button></form>
+                <h3 class="mt-4" th:text="|Deck: ${data.selectedDeckName}|"></h3>
+                <form method="post" th:action="@{/admin/bot/{id}/deck(id=${bot.userId})}"><select class="form-select" name="db"><option value="secondary">Dev</option><option value="both">Deploy + Dev</option></select><input class="form-control mt-1" name="deckName" th:value="${data.selectedDeckName}" required>
+                    <table class="table table-sm"><tr th:each="card : ${secondaryCards}"><td><input type="checkbox" name="cardNames" th:value="${card.name}" onchange="this.closest('tr').querySelector('[name=counts]').disabled=!this.checked"></td><td th:text="${card.name}"></td><td><input class="form-control" name="counts" type="number" min="1" value="1" disabled></td></tr></table><button class="btn btn-primary">Replace deck</button></form>
+                <ul><li th:each="card : ${data.cards}" th:text="|${card.cardName} × ${card.count}|"></li></ul>
+            </div>
+        </section>
+    </div>
+</main></body></html>
