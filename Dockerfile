@@ -11,6 +11,8 @@ COPY gradlew ./
 RUN ./gradlew dependencies --no-daemon
 
 # Copy source and build
+# lombok.config is required at compile time (copies @Qualifier to generated constructors)
+COPY lombok.config ./
 COPY src ./src
 RUN ./gradlew clean build -x test --no-daemon
 
