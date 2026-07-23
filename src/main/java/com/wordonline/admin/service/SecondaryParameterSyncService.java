@@ -1,6 +1,7 @@
 package com.wordonline.admin.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(transactionManager = "secondaryTransactionManager")
 public class SecondaryParameterSyncService {
 
+    @Qualifier("secondaryJdbcTemplate")
     private final JdbcTemplate secondaryJdbcTemplate;
 
     public record ParameterRow(Long id, String name) {}
