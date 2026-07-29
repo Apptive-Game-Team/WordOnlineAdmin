@@ -105,9 +105,11 @@
 
                 <!-- Action Buttons -->
                 <div class="mt-4 text-center">
-                    <a th:href="@{/admin/invalidate-cache}" class="btn btn-primary mr-2">
-                        🔄 Invalidate Cache
-                    </a>
+                    <form th:action="@{/admin/invalidate-cache}" method="post" class="d-inline mr-2">
+                        <button type="submit" class="btn btn-primary">
+                            🔄 Invalidate Cache
+                        </button>
+                    </form>
                     <button type="button" id="btn-grant-default-contents-primary" class="btn btn-success mr-2">
                         🎁 Grant Defaults (Prod)
                     </button>
