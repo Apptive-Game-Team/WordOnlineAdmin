@@ -70,7 +70,11 @@ public class ParameterService {
 
     public void updateParameter(Long parameterId, String name, boolean secondary, boolean syncOther) {
         if (secondary) {
+            String currentName = syncOther ? findSecondaryParameterName(parameterId) : null;
             secondaryParameterSyncService.orElseThrow().updateParameter(parameterId, name);
+            if (syncOther) {
+                updateParameter(currentName, name, false);
+            }
             return;
         }
 
@@ -86,7 +90,11 @@ public class ParameterService {
 
     public void deleteParameter(Long parameterId, boolean secondary, boolean syncOther) {
         if (secondary) {
+            String name = syncOther ? findSecondaryParameterName(parameterId) : null;
             secondaryParameterSyncService.orElseThrow().deleteParameter(parameterId);
+            if (syncOther) {
+                deleteParameter(name, false);
+            }
             return;
         }
 
@@ -217,6 +225,9 @@ public class ParameterService {
             Parameter parameter = parameterRepository.findById(parameterId)
                     .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter"));
             secondaryParameterSyncService.orElseThrow().upsertParameterValue(gameObject.getName(), parameter.getName(), value);
+            if (syncOther) {
+                createParameterValue(gameObjectId, parameterId, value, false);
+            }
             return;
         }
 
@@ -244,6 +255,9 @@ public class ParameterService {
                     parameterValue.getParameter().getName(),
                     value
             );
+            if (syncOther) {
+                updateParameterValue(parameterValueId, value, false);
+            }
             return;
         }
 
@@ -269,6 +283,9 @@ public class ParameterService {
                     parameterValue.getGameObject().getName(),
                     parameterValue.getParameter().getName()
             );
+            if (syncOther) {
+                deleteParameterValue(parameterValueId, false);
+            }
             return;
         }
 
@@ -368,7 +385,7 @@ public class ParameterService {
         log.info("  -> Preparing target GameObject: currentPresent={}", gameObject.isPresent());
         GameObject targetGameObject = gameObject.orElseGet(
                 () -> {
-                    GameObject newGo = gameObjectRepository.save(new GameObject(gameObjectName));
+                    GameObject newGo = gameObjectRepository.saveAndFlush(new GameObject(gameObjectName));
                     log.info("    -> Created new GameObject in Primary DB: id={}, name='{}'", newGo.getId(), newGo.getName());
                     return newGo;
                 }
@@ -376,7 +393,7 @@ public class ParameterService {
         log.info("  -> Preparing target Parameter: currentPresent={}", parameter.isPresent());
         Parameter targetParameter = parameter.orElseGet(
                 () -> {
-                    Parameter newParam = parameterRepository.save(new Parameter(parameterName));
+                    Parameter newParam = parameterRepository.saveAndFlush(new Parameter(parameterName));
                     log.info("    -> Created new Parameter in Primary DB: id={}, name='{}'", newParam.getId(), newParam.getName());
                     return newParam;
                 }
@@ -568,6 +585,15 @@ public class ParameterService {
 
         parameterValueRepository.saveAll(changedValues);
         return new SyncResult(created, updated, unchanged, changedItems);
+    }
+
+    private String findSecondaryParameterName(Long parameterId) {
+        return secondaryParameterSyncService.orElseThrow().getParameters()
+                .stream()
+                .filter(parameter -> parameter.id().equals(parameterId))
+                .findFirst()
+                .map(SecondaryParameterSyncService.ParameterRow::name)
+                .orElseThrow(() -> new IllegalArgumentException("Not Found Parameter in secondary database: " + parameterId));
     }
 
     private void syncSecondary(boolean enabled, SecondarySyncAction action) {
