@@ -192,6 +192,10 @@ public class SpreadSheetService {
             boolean secondary,
             boolean syncSecondary
     ) {
+        if (updates == null || updates.isEmpty()) {
+            return;
+        }
+
         if (secondary) {
             SecondaryParameterSyncService service = secondaryParameterSyncService.orElseThrow();
             for (SpreadSheetApiController.ParameterUpdateDto update : updates) {
