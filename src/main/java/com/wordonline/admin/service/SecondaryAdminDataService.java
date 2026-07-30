@@ -232,7 +232,7 @@ public class SecondaryAdminDataService {
     }
 
     public void addCardToMagic(String magicName, String cardName) {
-        jdbcTemplate.update(
+        int inserted = jdbcTemplate.update(
                 """
                 insert into magic_cards (magic_id, card_id)
                 select m.id, c.id
@@ -243,6 +243,11 @@ public class SecondaryAdminDataService {
                 magicName,
                 cardName
         );
+        if (inserted == 0) {
+            throw new IllegalArgumentException(
+                    "Magic or card not found in secondary database: " + magicName + " / " + cardName
+            );
+        }
     }
 
     public void removeCardFromMagic(String magicName, String cardName) {
@@ -260,9 +265,12 @@ public class SecondaryAdminDataService {
                 magicName,
                 cardName
         );
-        if (!ids.isEmpty()) {
-            jdbcTemplate.update("delete from magic_cards where id = ?", ids.getFirst());
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Magic card not found in secondary database: " + magicName + " / " + cardName
+            );
         }
+        jdbcTemplate.update("delete from magic_cards where id = ?", ids.getFirst());
     }
 
     public SyncResult syncAdventuresToSecondary(List<AdventureDto> adventures) {
