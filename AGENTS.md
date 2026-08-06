@@ -28,5 +28,24 @@ Workflow for tracked work in this repo:
 - Use branch names in the form `<issue-label>/<issue-num>` such as `feature/123` or `fix/39`.
 - After implementation and verification, open a PR linked to the issue.
 
+Every issue and pull request must set an assignee and a label. Do not leave either blank.
+
+- Assignee: `--assignee @me`.
+- Label: use the same value as the branch prefix. Check available labels with `gh label list`; do not invent a new label when none fit.
+- Do not attach a project.
+- When GitHub CLI authentication appears invalid inside a sandbox but the user says their session is valid, request escalated execution and retry `gh` with the user's session credentials before asking them to re-authenticate.
+
+```bash
+gh issue create --title "..." --body "..." --assignee @me --label documentation
+gh pr create --base <base> --title "..." --body "..." --assignee @me --label documentation
+```
+
+Confirm the metadata after creation:
+
+```bash
+gh issue view <issue-number> --json assignees,labels
+gh pr view <pr-number> --json assignees,labels
+```
+
 ## Security & Configuration Tips
 Do not commit `.env`, database credentials, JWT material, or deployment host details. Review `deploy.sh` and `remote-deploy.sh` carefully before changing release behavior because they manage live process restarts.
