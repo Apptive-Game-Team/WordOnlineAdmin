@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
@@ -28,6 +29,7 @@ public class AdminPageController {
     private final ParameterService parameterService;
     private final SpreadSheetService spreadSheetService;
 
+    @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/")
     public String index(Model model) {
         model.addAttribute("servers", serverService.getAllServers());
@@ -90,7 +92,7 @@ public class AdminPageController {
     }
 
     @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
-    @GetMapping("/admin/invalidate-cache")
+    @PostMapping("/admin/invalidate-cache")
     public String invalidateCache() {
         gameServerClient.invalidateCache();
         return "redirect:/";
