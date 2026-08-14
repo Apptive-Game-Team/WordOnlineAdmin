@@ -34,8 +34,33 @@ public class StatisticPerformanceService {
         return repository.findSystemTimings(gameType, fromDate);
     }
 
-    public List<TimeSeriesPointDto> findTimeSeries(String name, GameType gameType, LocalDateTime fromDate) {
-        return repository.findTimeSeries(name, gameType, fromDate);
+    public List<TimeSeriesPointDto> findTimeSeries(String name, GameType gameType, LocalDateTime fromDate, int days) {
+        return repository.findTimeSeries(name, gameType, fromDate, bucketUnit(days));
+    }
+
+    /**
+     * 조회 범위에 맞춰 시계열의 구간 단위를 고른다.
+     * <p>
+     * 어느 범위에서도 점이 대략 24~90개가 되도록 맞춘 값이다. 하루를 하루 단위로 묶으면 점이
+     * 하나뿐이라 추이가 보이지 않고, 1년을 시간 단위로 묶으면 8,760점이라 차트가 멈춘다.
+     */
+    public String bucketUnit(int days) {
+        if (days <= 2) {
+            return "hour";
+        }
+        if (days <= 90) {
+            return "day";
+        }
+        return "week";
+    }
+
+    /** 화면에 구간 단위를 알려 주기 위한 표시용 문자열. */
+    public String bucketLabel(int days) {
+        return switch (bucketUnit(days)) {
+            case "hour" -> "시간";
+            case "day" -> "일";
+            default -> "주";
+        };
     }
 
     public List<GameFrameSummaryDto> findRecentGames(GameType gameType, LocalDateTime fromDate, int page, int size) {

@@ -91,6 +91,27 @@ class StatisticPerformanceServiceTest {
         verify(repository).findRecentGames(eq(null), any(), eq(0), eq(20));
     }
 
+    /**
+     * 게임당 한 점을 찍으면 1년 범위에서 15,000점이 넘어 페이지가 900KB가 되고 차트가 멈춘다.
+     * 구간 단위는 어느 범위에서도 점 개수가 수십 개에 머물도록 골라야 한다.
+     */
+    @Test
+    void picksABucketThatKeepsThePointCountBounded() {
+        assertEquals("hour", service().bucketUnit(1));
+        assertEquals("hour", service().bucketUnit(2));
+        assertEquals("day", service().bucketUnit(7));
+        assertEquals("day", service().bucketUnit(30));
+        assertEquals("day", service().bucketUnit(90));
+        assertEquals("week", service().bucketUnit(365));
+    }
+
+    @Test
+    void passesTheBucketDerivedFromTheDayRangeToTheRepository() {
+        service().findTimeSeries("Frame", GameType.PVP, from, 365);
+
+        verify(repository).findTimeSeries(eq("Frame"), eq(GameType.PVP), any(), eq("week"));
+    }
+
     @Test
     void totalPagesRoundsUpAndHandlesAnEmptyResult() {
         assertEquals(3, service().totalPages(45, 20));

@@ -59,9 +59,9 @@ class StatisticPerformanceRenderTest {
         when(service.findSystemTimings(any(), any())).thenReturn(List.of(frame, physics));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.frameTiming(any())).thenReturn(frame);
-        when(service.findTimeSeries(any(), any(), any())).thenReturn(List.of(
-                new TimeSeriesPointDto(1L, LocalDateTime.of(2026, 8, 1, 10, 0), 47_000_000.0),
-                new TimeSeriesPointDto(2L, LocalDateTime.of(2026, 8, 2, 10, 0), 62_900_000.0)));
+        when(service.findTimeSeries(any(), any(), any(), anyInt())).thenReturn(List.of(
+                new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 1, 10, 0), 47_000_000.0, 12L),
+                new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 62_900_000.0, 9L)));
         when(service.findRecentGames(any(), any(), anyInt(), anyInt())).thenReturn(List.of(
                 new GameFrameSummaryDto(2L, LocalDateTime.of(2026, 8, 2, 10, 0), "PVP", 302L,
                         62_900_000.0, 96_000_000L),

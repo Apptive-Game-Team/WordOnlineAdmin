@@ -59,7 +59,7 @@ public class StatisticPerformanceController {
         String selectedName = statisticPerformanceService.selectName(name, timings);
         List<TimeSeriesPointDto> series = selectedName == null
                 ? List.of()
-                : statisticPerformanceService.findTimeSeries(selectedName, type, fromDate);
+                : statisticPerformanceService.findTimeSeries(selectedName, type, fromDate, daysFilter);
         List<GameFrameSummaryDto> games = statisticPerformanceService.findRecentGames(
                 type, fromDate, pageIndex, StatisticPerformanceService.DEFAULT_PAGE_SIZE);
         long totalCount = statisticPerformanceService.countRecentGames(type, fromDate);
@@ -76,6 +76,7 @@ public class StatisticPerformanceController {
         model.addAttribute("page", pageIndex);
         model.addAttribute("totalPages", statisticPerformanceService.totalPages(
                 totalCount, StatisticPerformanceService.DEFAULT_PAGE_SIZE));
+        model.addAttribute("bucketLabel", statisticPerformanceService.bucketLabel(daysFilter));
         model.addAttribute("timingsJson", toJson(timings.stream().map(ChartPoint::of).toList()));
         model.addAttribute("seriesJson", toJson(series.stream().map(SeriesPoint::of).toList()));
         return "admin-statistics-performance";
@@ -99,9 +100,10 @@ public class StatisticPerformanceController {
         }
     }
 
-    private record SeriesPoint(String at, double mean) {
+    private record SeriesPoint(String at, double median, long games) {
         static SeriesPoint of(TimeSeriesPointDto point) {
-            return new SeriesPoint(point.createdAt().toString(), point.meanIntervalMs());
+            return new SeriesPoint(
+                    point.bucketStart().toString(), point.medianMeanIntervalMs(), point.gameCount());
         }
     }
 

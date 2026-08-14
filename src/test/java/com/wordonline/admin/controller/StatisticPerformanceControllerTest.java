@@ -142,8 +142,8 @@ class StatisticPerformanceControllerTest {
     void serialisesChartDataAsMillisecondsForTheBrowser() {
         when(service.findSystemTimings(any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
-        when(service.findTimeSeries(any(), any(), any())).thenReturn(List.of(
-                new TimeSeriesPointDto(1L, LocalDateTime.of(2026, 8, 2, 10, 0), 20_000_000.0)));
+        when(service.findTimeSeries(any(), any(), any(), anyInt())).thenReturn(List.of(
+                new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 20_000_000.0, 3L)));
 
         Model model = render(null, 7, null, null);
 
@@ -151,7 +151,8 @@ class StatisticPerformanceControllerTest {
         String seriesJson = (String) model.getAttribute("seriesJson");
         assertTrue(timingsJson.contains("\"median\":30.0"), timingsJson);
         assertTrue(timingsJson.contains("\"p95\":48.0"), timingsJson);
-        assertTrue(seriesJson.contains("\"mean\":20.0"), seriesJson);
+        assertTrue(seriesJson.contains("\"median\":20.0"), seriesJson);
+        assertTrue(seriesJson.contains("\"games\":3"), seriesJson);
         assertTrue(seriesJson.contains("2026-08-02T10:00"), seriesJson);
     }
 
@@ -175,7 +176,7 @@ class StatisticPerformanceControllerTest {
 
         Model model = render(null, 7, null, null);
 
-        verify(service, org.mockito.Mockito.never()).findTimeSeries(any(), any(), any());
+        verify(service, org.mockito.Mockito.never()).findTimeSeries(any(), any(), any(), anyInt());
         assertEquals("[]", model.getAttribute("seriesJson"));
     }
 

@@ -61,8 +61,8 @@
             data: {
                 labels: series.map(function (p) { return p.at; }),
                 datasets: [{
-                    label: 'mean interval (ms)',
-                    data: series.map(function (p) { return p.mean; }),
+                    label: 'median (ms)',
+                    data: series.map(function (p) { return p.median; }),
                     borderColor: 'rgba(13, 110, 253, 1)',
                     backgroundColor: 'rgba(13, 110, 253, 0.2)',
                     pointRadius: 2,
@@ -72,6 +72,17 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            // 그 구간에 게임이 몇 건이었는지가 값의 신뢰도를 좌우한다.
+                            afterLabel: function (item) {
+                                var point = series[item.dataIndex];
+                                return point ? point.games + ' games' : '';
+                            }
+                        }
+                    }
+                },
                 scales: {
                     y: {
                         title: { display: true, text: 'milliseconds' },

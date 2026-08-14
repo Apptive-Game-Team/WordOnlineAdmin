@@ -115,7 +115,14 @@
                 <h5>Per-name timings (slowest first)</h5>
                 <p class="text-muted" th:if="${timings.isEmpty()}">기록된 타이밍 통계가 없다.</p>
                 <div th:unless="${timings.isEmpty()}">
-                    <canvas id="timingChart" height="120"></canvas>
+                    <!--
+                      가로 막대는 이름 수만큼 행이 늘어나므로 높이를 이름 수에서 계산한다. 컨테이너에
+                      높이를 주지 않으면 maintainAspectRatio:false인 차트가 채울 높이를 찾지 못해
+                      세로로 계속 늘어난다.
+                    -->
+                    <div th:style="'position: relative; height: ' + ${28 * timings.size() + 60} + 'px;'">
+                        <canvas id="timingChart"></canvas>
+                    </div>
                     <table class="table table-sm table-striped mt-3">
                         <thead>
                         <tr>
@@ -152,7 +159,13 @@
         <div class="card mt-4" th:if="${selectedName != null}">
             <div class="card-body">
                 <h5><span th:text="${selectedName}">name</span> over time</h5>
-                <canvas id="seriesChart" height="120"></canvas>
+                <p class="text-muted small">
+                    <span th:text="${bucketLabel}">일</span> 단위로 묶어 각 구간에 속한 게임별 평균의
+                    중앙값을 그린다. 게임 하나하나의 값은 아래 최근 게임 표에서 볼 수 있다.
+                </p>
+                <div style="position: relative; height: 320px;">
+                    <canvas id="seriesChart"></canvas>
+                </div>
             </div>
         </div>
 

@@ -75,23 +75,37 @@ public class StatisticUpdateTimeRepository {
         )).toList();
     }
 
-    public List<TimeSeriesPointDto> findTimeSeries(String name, GameType gameType, LocalDateTime fromDate) {
+    /**
+     * 이름 하나의 추이. 게임마다 점을 찍지 않고 {@code bucket} 단위로 묶는다.
+     * <p>
+     * 게임당 한 점이면 1년 범위에서 15,000점이 넘어 페이지가 900KB가 되고 차트가 멈춘다. 구간별
+     * 중앙값을 쓰면 점 개수가 범위와 무관하게 수십 개로 유지되고, 이름별 집계와 같은 방식(평균이
+     * 아니라 분포)으로 계산된다.
+     *
+     * @param bucket {@code date_trunc}에 넘길 단위. 호출자가 조회 범위에 맞춰 고른다.
+     */
+    public List<TimeSeriesPointDto> findTimeSeries(String name, GameType gameType, LocalDateTime fromDate,
+                                                   String bucket) {
         Query query = entityManager.createNativeQuery("""
-                SELECT g.id, g.created_at, ut.mean_interval_ns
+                SELECT date_trunc(CAST(:bucket AS TEXT), g.created_at) AS bucket_start,
+                       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CAST(ut.mean_interval_ns AS DECIMAL(30, 3))),
+                       COUNT(*)
                 FROM statistic_update_time ut
                 JOIN statistic_games g ON g.id = ut.statistic_game_id
                 WHERE ut.name = CAST(:name AS TEXT)
                 """ + FILTER + """
-                ORDER BY g.created_at ASC, g.id ASC
+                GROUP BY bucket_start
+                ORDER BY bucket_start ASC
                 """);
         query.setParameter("name", name);
+        query.setParameter("bucket", bucket);
         bindFilter(query, gameType, fromDate);
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
         return rows.stream().map(row -> new TimeSeriesPointDto(
-                ((Number) row[0]).longValue(),
-                toLocalDateTime(row[1]),
-                ((Number) row[2]).doubleValue()
+                toLocalDateTime(row[0]),
+                ((Number) row[1]).doubleValue(),
+                ((Number) row[2]).longValue()
         )).toList();
     }
 
