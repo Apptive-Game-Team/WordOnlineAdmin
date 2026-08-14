@@ -10,6 +10,9 @@ import com.wordonline.admin.repository.server.ServerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -18,9 +21,16 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class ServerService {
 
+    /**
+     * The game server heartbeats every 10s by default, so this tolerates two missed beats before
+     * the dashboard stops trusting the number the server last wrote.
+     */
+    private static final Duration MAX_HEARTBEAT_AGE = Duration.ofSeconds(30);
+
     private final ServerRepository serverRepository;
     private final GameServerClient gameServerClient;
     private final Optional<SecondaryServerService> secondaryServerService;
+    private final Clock clock;
 
     public List<ServerDto> getPrimaryServers() {
         return serverRepository.findAll().stream()
@@ -60,12 +70,13 @@ public class ServerService {
     }
 
     private Stream<ServerSessionCountDto> sessionCounts(ServerDatabase database, List<ServerDto> servers) {
+        Instant now = clock.instant();
         return servers.stream()
                 .filter(this::hasSessions)
                 .map(server -> new ServerSessionCountDto(
                         database,
                         server.id(),
-                        gameServerClient.getSessionCount(server.url())));
+                        server.hasFreshHeartbeat(now, MAX_HEARTBEAT_AGE) ? server.sessionCount() : null));
     }
 
     // A draining server still hosts the sessions it has not finished yet.

@@ -14,6 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +29,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ServerServiceTest {
 
+    private static final Instant NOW = Instant.parse("2026-08-14T00:00:00Z");
+    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
     @Mock
     private ServerRepository serverRepository;
     @Mock
@@ -36,18 +42,16 @@ class ServerServiceTest {
 
     @BeforeEach
     void setUp() {
-        serverService = new ServerService(serverRepository, gameServerClient, Optional.empty());
+        serverService = new ServerService(serverRepository, gameServerClient, Optional.empty(), CLOCK);
     }
 
     @Test
-    void getGameServerSessionCountsQueriesOnlyGameServersThatCanHoldSessions() {
-        Server activeGame = new Server(1L, "http", "game-active", 8080, ServerType.GAME, ServerState.ACTIVE);
-        Server drainingGame = new Server(2L, "http", "game-draining", 8080, ServerType.GAME, ServerState.DRAINING);
-        Server inactiveGame = new Server(3L, "http", "game-inactive", 8080, ServerType.GAME, ServerState.INACTIVE);
+    void getGameServerSessionCountsReadsTheHeartbeatOfEveryGameServerThatCanHoldSessions() {
+        Server activeGame = heartbeatingGame(1L, "game-active", ServerState.ACTIVE, 7, NOW.minusSeconds(5));
+        Server drainingGame = heartbeatingGame(2L, "game-draining", ServerState.DRAINING, 1, NOW.minusSeconds(5));
+        Server inactiveGame = heartbeatingGame(3L, "game-inactive", ServerState.INACTIVE, 4, NOW.minusSeconds(5));
         Server lobby = new Server(4L, "http", "lobby", 8080, ServerType.LOBBY, ServerState.ACTIVE);
         when(serverRepository.findAll()).thenReturn(List.of(activeGame, drainingGame, inactiveGame, lobby));
-        when(gameServerClient.getSessionCount(activeGame.getUrl())).thenReturn(7);
-        when(gameServerClient.getSessionCount(drainingGame.getUrl())).thenReturn(1);
 
         List<ServerSessionCountDto> counts = serverService.getGameServerSessionCounts();
 
@@ -61,13 +65,48 @@ class ServerServiceTest {
     }
 
     @Test
+    void getGameServerSessionCountsDropsTheCountOfAServerThatStoppedHeartbeating() {
+        Server stale = heartbeatingGame(1L, "game-stale", ServerState.ACTIVE, 3, NOW.minusSeconds(31));
+        Server neverReported = new Server(2L, "http", "game-new", 8080, ServerType.GAME, ServerState.ACTIVE);
+        when(serverRepository.findAll()).thenReturn(List.of(stale, neverReported));
+
+        List<ServerSessionCountDto> counts = serverService.getGameServerSessionCounts();
+
+        assertEquals(
+                List.of(
+                        new ServerSessionCountDto(ServerDatabase.PRIMARY, 1L, null),
+                        new ServerSessionCountDto(ServerDatabase.PRIMARY, 2L, null)
+                ),
+                counts
+        );
+    }
+
+    @Test
+    void getGameServerSessionCountsCoversBothDatabases() {
+        serverService = new ServerService(serverRepository, gameServerClient, Optional.of(secondaryServerService), CLOCK);
+        when(serverRepository.findAll()).thenReturn(
+                List.of(heartbeatingGame(1L, "game", ServerState.ACTIVE, 7, NOW.minusSeconds(5))));
+        when(secondaryServerService.getServers()).thenReturn(List.of(new ServerDto(
+                1L, "http", "dev-game", 8080, ServerType.GAME, ServerState.ACTIVE, 2, NOW.minusSeconds(5))));
+
+        assertEquals(
+                List.of(
+                        new ServerSessionCountDto(ServerDatabase.PRIMARY, 1L, 7),
+                        new ServerSessionCountDto(ServerDatabase.SECONDARY, 1L, 2)
+                ),
+                serverService.getGameServerSessionCounts()
+        );
+    }
+
+    @Test
     void invalidateGameServerCachesCallsEveryGameServerOfBothDatabases() {
         Server activeGame = new Server(1L, "http", "game-active", 8080, ServerType.GAME, ServerState.ACTIVE);
         Server drainingGame = new Server(2L, "http", "game-draining", 8080, ServerType.GAME, ServerState.DRAINING);
         Server inactiveGame = new Server(3L, "http", "game-inactive", 8080, ServerType.GAME, ServerState.INACTIVE);
         Server lobby = new Server(4L, "http", "lobby", 8080, ServerType.LOBBY, ServerState.ACTIVE);
-        ServerDto devGame = new ServerDto(1L, "http", "dev-game", 8080, ServerType.GAME, ServerState.ACTIVE);
-        serverService = new ServerService(serverRepository, gameServerClient, Optional.of(secondaryServerService));
+        ServerDto devGame = new ServerDto(
+                1L, "http", "dev-game", 8080, ServerType.GAME, ServerState.ACTIVE, null, null);
+        serverService = new ServerService(serverRepository, gameServerClient, Optional.of(secondaryServerService), CLOCK);
         when(serverRepository.findAll()).thenReturn(List.of(activeGame, drainingGame, inactiveGame, lobby));
         when(secondaryServerService.getServers()).thenReturn(List.of(devGame));
         when(gameServerClient.invalidateCache(anyString())).thenReturn(true);
@@ -93,14 +132,7 @@ class ServerServiceTest {
         assertEquals(1, serverService.invalidateGameServerCaches());
     }
 
-    @Test
-    void getGameServerSessionCountsKeepsUnreachableServersWithoutACount() {
-        Server activeGame = new Server(1L, "http", "game-active", 8080, ServerType.GAME, ServerState.ACTIVE);
-        when(serverRepository.findAll()).thenReturn(List.of(activeGame));
-        when(gameServerClient.getSessionCount(activeGame.getUrl())).thenReturn(null);
-
-        List<ServerSessionCountDto> counts = serverService.getGameServerSessionCounts();
-
-        assertEquals(List.of(new ServerSessionCountDto(ServerDatabase.PRIMARY, 1L, null)), counts);
+    private Server heartbeatingGame(Long id, String domain, ServerState state, int sessionCount, Instant lastHeartbeatAt) {
+        return new Server(id, "http", domain, 8080, ServerType.GAME, state, sessionCount, lastHeartbeatAt);
     }
 }
