@@ -1,0 +1,84 @@
+// 프레임 타이밍 페이지의 차트. 데이터는 서버가 페이지 안에 넣어 두므로 이 스크립트는 요청을 하지
+// 않는다. Chart.js 로드에 실패해도 표에 모든 수치가 남아 있으므로 조용히 빠져나간다.
+(function () {
+    'use strict';
+
+    function readJson(id) {
+        var el = document.getElementById(id);
+        if (!el) {
+            return [];
+        }
+        try {
+            return JSON.parse(el.textContent) || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    if (typeof Chart === 'undefined') {
+        return;
+    }
+
+    var timings = readJson('timingData');
+    var timingCanvas = document.getElementById('timingChart');
+    if (timingCanvas && timings.length) {
+        new Chart(timingCanvas, {
+            type: 'bar',
+            data: {
+                labels: timings.map(function (t) { return t.name; }),
+                datasets: [
+                    {
+                        label: 'median (ms)',
+                        data: timings.map(function (t) { return t.median; }),
+                        backgroundColor: 'rgba(13, 110, 253, 0.7)'
+                    },
+                    {
+                        label: 'p95 (ms)',
+                        data: timings.map(function (t) { return t.p95; }),
+                        backgroundColor: 'rgba(253, 126, 20, 0.7)'
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'milliseconds' },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    var series = readJson('seriesData');
+    var seriesCanvas = document.getElementById('seriesChart');
+    if (seriesCanvas && series.length) {
+        new Chart(seriesCanvas, {
+            type: 'line',
+            data: {
+                labels: series.map(function (p) { return p.at; }),
+                datasets: [{
+                    label: 'mean interval (ms)',
+                    data: series.map(function (p) { return p.mean; }),
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    pointRadius: 2,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: { display: true, text: 'milliseconds' },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+})();

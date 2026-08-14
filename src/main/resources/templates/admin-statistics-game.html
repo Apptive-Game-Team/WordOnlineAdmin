@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Game Timing</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <p>
+            <a th:href="@{/admin/statistics/performance}">&larr; Back to frame timing</a>
+        </p>
+
+        <div th:if="${game == null}">
+            <h1>Game not found</h1>
+            <p class="text-muted">해당 게임의 통계가 없다.</p>
+        </div>
+
+        <div th:if="${game != null}">
+            <h1>Game <span th:text="${game.gameId()}">0</span></h1>
+
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="card-subtitle text-muted">Recorded</h6>
+                            <p class="h6 mt-2 mb-0"
+                               th:text="${#temporals.format(game.createdAt(), 'yyyy-MM-dd HH:mm:ss')}">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="card-subtitle text-muted">Type</h6>
+                            <p class="h4 mt-2 mb-0" th:text="${game.gameType()}">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="card-subtitle text-muted">Duration</h6>
+                            <p class="h4 mt-2 mb-0" th:text="${game.durationSeconds()} + ' s'">0 s</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="card-subtitle text-muted">Frame mean</h6>
+                            <p class="h4 mt-2 mb-0"
+                               th:if="${game.hasFrameData()}"
+                               th:classappend="${game.frameMeanIntervalMs() > frameBudgetMs} ? 'text-danger' : 'text-success'"
+                               th:text="${#numbers.formatDecimal(game.frameMeanIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                            <p class="h4 mt-2 mb-0 text-muted" th:unless="${game.hasFrameData()}">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5>Measured names</h5>
+                    <p class="text-muted" th:if="${timings.isEmpty()}">이 게임에 기록된 타이밍 행이 없다.</p>
+                    <table class="table table-sm table-striped" th:unless="${timings.isEmpty()}">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-end">Mean (ms)</th>
+                            <th class="text-end">Min (ms)</th>
+                            <th class="text-end">Max (ms)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="timing : ${timings}">
+                            <td th:text="${timing.name()}">name</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.meanIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.minIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.maxIntervalMs(), 1, 3)}">0</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Performance</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Frame Timing</h1>
+
+        <!-- Game Type and Date Filter -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Filter by Game Type</h5>
+                        <div class="btn-group" role="group">
+                            <a th:href="@{/admin/statistics/performance(days=${selectedDays}, name=${selectedName})}"
+                               th:classappend="${selectedGameType == 'ALL'} ? 'active' : ''"
+                               class="btn btn-outline-primary">All Games</a>
+                            <a th:href="@{/admin/statistics/performance(gameType='PVP', days=${selectedDays}, name=${selectedName})}"
+                               th:classappend="${selectedGameType == 'PVP'} ? 'active' : ''"
+                               class="btn btn-outline-primary">PVP</a>
+                            <a th:href="@{/admin/statistics/performance(gameType='Practice', days=${selectedDays}, name=${selectedName})}"
+                               th:classappend="${selectedGameType == 'Practice'} ? 'active' : ''"
+                               class="btn btn-outline-primary">Practice</a>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5>Filter by Date Range</h5>
+                        <div class="btn-group" role="group">
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=1, name=${selectedName})}"
+                               th:classappend="${selectedDays == 1} ? 'active' : ''"
+                               class="btn btn-outline-secondary">1 Day</a>
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=7, name=${selectedName})}"
+                               th:classappend="${selectedDays == 7} ? 'active' : ''"
+                               class="btn btn-outline-secondary">7 Days</a>
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=30, name=${selectedName})}"
+                               th:classappend="${selectedDays == 30} ? 'active' : ''"
+                               class="btn btn-outline-secondary">30 Days</a>
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=365, name=${selectedName})}"
+                               th:classappend="${selectedDays == 365} ? 'active' : ''"
+                               class="btn btn-outline-secondary">1 Year</a>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mt-3 mb-0">
+                    봇 자동 대전이 만들어내는 합성 게임은 실제 매치와 같은 테이블에
+                    <code>Practice</code>로 저장된다. 실제 매치 지표만 보려면 PVP로 좁혀야 한다.
+                </p>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Games</h6>
+                        <p class="h4 mt-2 mb-0" th:text="${totalCount}">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Frame median</h6>
+                        <p class="h4 mt-2 mb-0"
+                           th:if="${frameTiming != null}"
+                           th:classappend="${frameTiming.medianMeanIntervalMs() > frameBudgetMs} ? 'text-danger' : 'text-success'"
+                           th:text="${#numbers.formatDecimal(frameTiming.medianMeanIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                        <p class="h4 mt-2 mb-0 text-muted" th:if="${frameTiming == null}">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Frame p95</h6>
+                        <p class="h4 mt-2 mb-0"
+                           th:if="${frameTiming != null}"
+                           th:classappend="${frameTiming.p95MeanIntervalMs() > frameBudgetMs} ? 'text-danger' : 'text-success'"
+                           th:text="${#numbers.formatDecimal(frameTiming.p95MeanIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                        <p class="h4 mt-2 mb-0 text-muted" th:if="${frameTiming == null}">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Worst frame</h6>
+                        <p class="h4 mt-2 mb-0"
+                           th:if="${frameTiming != null}"
+                           th:text="${#numbers.formatDecimal(frameTiming.maxIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                        <p class="h4 mt-2 mb-0 text-muted" th:if="${frameTiming == null}">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-muted small mt-2">
+            20 FPS 기준 프레임 예산은 <span th:text="${#numbers.formatDecimal(frameBudgetMs, 1, 2)}">50.00</span> ms다.
+            중앙값과 95 백분위수는 게임별 평균값들의 분포이며, 평균을 다시 평균낸 값이 아니다.
+        </p>
+
+        <!-- Per-name timings -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>Per-name timings (slowest first)</h5>
+                <p class="text-muted" th:if="${timings.isEmpty()}">기록된 타이밍 통계가 없다.</p>
+                <div th:unless="${timings.isEmpty()}">
+                    <canvas id="timingChart" height="120"></canvas>
+                    <table class="table table-sm table-striped mt-3">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-end">Median (ms)</th>
+                            <th class="text-end">p95 (ms)</th>
+                            <th class="text-end">Min (ms)</th>
+                            <th class="text-end">Max (ms)</th>
+                            <th class="text-end">Games</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="timing : ${timings}"
+                            th:classappend="${timing.name() == selectedName} ? 'table-active' : ''">
+                            <td th:text="${timing.name()}">name</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.medianMeanIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.p95MeanIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.minIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.maxIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${timing.gameCount()}">0</td>
+                            <td>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${timing.name()})}">Plot</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time series -->
+        <div class="card mt-4" th:if="${selectedName != null}">
+            <div class="card-body">
+                <h5><span th:text="${selectedName}">name</span> over time</h5>
+                <canvas id="seriesChart" height="120"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent games -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>Recent games</h5>
+                <p class="text-muted" th:if="${games.isEmpty()}">해당 기간에 게임이 없다.</p>
+                <table class="table table-sm table-striped" th:unless="${games.isEmpty()}">
+                    <thead>
+                    <tr>
+                        <th>Game</th>
+                        <th>Recorded</th>
+                        <th>Type</th>
+                        <th class="text-end">Duration (s)</th>
+                        <th class="text-end">Frame mean (ms)</th>
+                        <th class="text-end">Frame max (ms)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="game : ${games}">
+                        <td>
+                            <a th:href="@{/admin/statistics/performance/games/{id}(id=${game.gameId()})}"
+                               th:text="${game.gameId()}">0</a>
+                        </td>
+                        <td th:text="${#temporals.format(game.createdAt(), 'yyyy-MM-dd HH:mm:ss')}">-</td>
+                        <td th:text="${game.gameType()}">-</td>
+                        <td class="text-end" th:text="${game.durationSeconds()}">0</td>
+                        <td class="text-end"
+                            th:classappend="${game.hasFrameData() and game.frameMeanIntervalMs() > frameBudgetMs} ? 'text-danger' : ''"
+                            th:text="${!game.hasFrameData()} ? '-' : ${#numbers.formatDecimal(game.frameMeanIntervalMs(), 1, 3)}">-</td>
+                        <td class="text-end"
+                            th:text="${game.frameMaxIntervalMs() == null} ? '-' : ${#numbers.formatDecimal(game.frameMaxIntervalMs(), 1, 3)}">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <nav th:if="${totalPages > 1}">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" th:classappend="${page == 0} ? 'disabled' : ''">
+                            <a class="page-link"
+                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page - 1})}">Previous</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link" th:text="'Page ' + (${page} + 1) + ' of ' + ${totalPages}">Page</span>
+                        </li>
+                        <li class="page-item" th:classappend="${page + 1 >= totalPages} ? 'disabled' : ''">
+                            <a class="page-link"
+                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page + 1})}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      차트 데이터는 서버가 렌더 시점에 페이지 안에 직접 넣는다. 위의 표가 원본이므로 Chart.js가
+      로드되지 않아도 모든 수치는 그대로 보인다.
+    -->
+    <script id="timingData" type="application/json" th:utext="${timingsJson}">[]</script>
+    <script id="seriesData" type="application/json" th:utext="${seriesJson}">[]</script>
+    <script th:src="@{/js/statistic-performance.js}"></script>
+</div>
+
+</body>
+</html>
