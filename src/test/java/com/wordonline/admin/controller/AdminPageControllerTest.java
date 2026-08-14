@@ -84,6 +84,17 @@ class AdminPageControllerTest {
     }
 
     @Test
+    void invalidateCacheReportsTheServersThatDidNotAnswer() throws Exception {
+        when(serverService.invalidateGameServerCaches()).thenReturn(2);
+
+        mockMvc.perform(get("/admin/invalidate-cache"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .flash().attribute("invalidateCacheError", 2));
+    }
+
+    @Test
     void indexRendersDevServersAndDefaultsToActiveFilter() throws Exception {
         when(serverService.getPrimaryServers()).thenReturn(List.of());
         when(serverService.getSecondaryServers()).thenReturn(List.of(

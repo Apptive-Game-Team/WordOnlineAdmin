@@ -41,6 +41,24 @@ public class ServerService {
         ).toList();
     }
 
+    /**
+     * Drops the parameter and magic caches on every reachable game server of both databases.
+     *
+     * @return the number of game servers that did not answer
+     */
+    public int invalidateGameServerCaches() {
+        return (int) gameServers()
+                .map(ServerDto::url)
+                .distinct()
+                .filter(url -> !gameServerClient.invalidateCache(url))
+                .count();
+    }
+
+    private Stream<ServerDto> gameServers() {
+        return Stream.concat(getPrimaryServers().stream(), getSecondaryServers().stream())
+                .filter(this::hasSessions);
+    }
+
     private Stream<ServerSessionCountDto> sessionCounts(ServerDatabase database, List<ServerDto> servers) {
         return servers.stream()
                 .filter(this::hasSessions)

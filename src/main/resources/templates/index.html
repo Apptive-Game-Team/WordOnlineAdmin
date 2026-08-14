@@ -165,6 +165,9 @@
                 </div>
 
                 <!-- Action Buttons -->
+                <div th:if="${invalidateCacheError}" class="alert alert-warning text-center" role="alert">
+                    <span th:text="${invalidateCacheError}">1</span> game server(s) did not drop their cache. Check the admin server log.
+                </div>
                 <div class="mt-4 text-center">
                     <a th:href="@{/admin/invalidate-cache}" class="btn btn-primary mr-2">
                         🔄 Invalidate Cache
