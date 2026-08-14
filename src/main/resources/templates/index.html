@@ -67,6 +67,14 @@
                                     </span>
                                 </div>
 
+                                <!-- Running Sessions (game servers only, filled in by polling) -->
+                                <div class="mb-3" th:if="${server.type.name() == 'GAME'}">
+                                    <span class="badge bg-secondary status-badge session-badge"
+                                          th:attr="data-server-id=${server.id}">
+                                        🎯 Sessions: <span class="session-count">…</span>
+                                    </span>
+                                </div>
+
                                 <!-- Server Details -->
                                 <div class="text-start small">
                                     <div class="mb-2">
@@ -117,6 +125,51 @@
                     </button>
                 </div>
             </div>
+
+            <script>
+                const SESSION_POLL_INTERVAL_MS = 5000;
+                let sessionPollInFlight = false;
+
+                async function refreshSessionCounts() {
+                    // A slow or unreachable game server must not let requests pile up.
+                    if (sessionPollInFlight) {
+                        return;
+                    }
+                    sessionPollInFlight = true;
+                    try {
+                        const response = await fetch('/api/admin/servers/session-counts', {
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const counts = await response.json();
+                        const countByServerId = new Map(counts.map(c => [String(c.serverId), c.sessionCount]));
+                        document.querySelectorAll('.session-badge').forEach(badge => {
+                            const count = countByServerId.get(badge.dataset.serverId);
+                            applySessionCount(badge, count === undefined ? null : count);
+                        });
+                    } catch (error) {
+                        document.querySelectorAll('.session-badge').forEach(badge => {
+                            applySessionCount(badge, null);
+                        });
+                    } finally {
+                        sessionPollInFlight = false;
+                    }
+                }
+
+                function applySessionCount(badge, count) {
+                    const known = count !== null;
+                    badge.querySelector('.session-count').textContent = known ? count : 'N/A';
+                    badge.classList.toggle('bg-primary', known);
+                    badge.classList.toggle('bg-secondary', !known);
+                }
+
+                if (document.querySelector('.session-badge')) {
+                    refreshSessionCounts();
+                    setInterval(refreshSessionCounts, SESSION_POLL_INTERVAL_MS);
+                }
+            </script>
         </div>
 
         <script th:inline="javascript">
