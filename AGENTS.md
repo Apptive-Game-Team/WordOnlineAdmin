@@ -49,3 +49,12 @@ gh pr view <pr-number> --json assignees,labels
 
 ## Security & Configuration Tips
 Do not commit `.env`, database credentials, JWT material, or deployment host details. Review `deploy.sh` and `remote-deploy.sh` carefully before changing release behavior because they manage live process restarts.
+
+## Versioning
+
+`version` in `build.gradle` is the admin server's single version source. Update
+it in every runtime-behavior change: PATCH for backward-compatible fixes and
+internal changes, MINOR for backward-compatible features, and MAJOR for
+breaking API or protocol changes. Do not bump for documentation, tests, or
+agent-instruction-only changes. Never add a second runtime version or use a
+`-SNAPSHOT` deployable version. Spring Boot build info embeds this value.
