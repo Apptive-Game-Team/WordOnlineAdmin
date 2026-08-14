@@ -47,14 +47,29 @@ public class StatisticUpdateTimeRepository {
      * 엔진이 있다. 스케일이 선언된 타입으로 캐스팅하면 사라지고, Postgres는 어느 쪽이든 같은 값을
      * 낸다.
      */
-    public List<SystemTimingDto> findSystemTimings(GameType gameType, LocalDateTime fromDate) {
+    /**
+     * 이름별 집계와, 같은 구간을 {@code midpoint}로 갈라 구한 전·후반 p95.
+     * <p>
+     * 전·후반을 따로 조회하지 않고 한 statement에서 낸다. {@code CASE}가 반대쪽 절반을 NULL로 만들고
+     * 순서 집합 집계는 NULL을 무시하므로, 같은 스캔에서 두 값이 함께 나온다.
+     */
+    public List<SystemTimingDto> findSystemTimings(GameType gameType, LocalDateTime fromDate,
+                                                   LocalDateTime midpoint) {
         Query query = entityManager.createNativeQuery("""
                 SELECT ut.name,
                        MIN(ut.min_interval_ns),
                        MAX(ut.max_interval_ns),
                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CAST(ut.mean_interval_ns AS DECIMAL(30, 3))),
                        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CAST(ut.mean_interval_ns AS DECIMAL(30, 3))),
-                       COUNT(*)
+                       COUNT(*),
+                       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE
+                           WHEN g.created_at < CAST(:midpoint AS TIMESTAMP)
+                           THEN CAST(ut.mean_interval_ns AS DECIMAL(30, 3)) END),
+                       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE
+                           WHEN g.created_at >= CAST(:midpoint AS TIMESTAMP)
+                           THEN CAST(ut.mean_interval_ns AS DECIMAL(30, 3)) END),
+                       COUNT(*) FILTER (WHERE g.created_at <  CAST(:midpoint AS TIMESTAMP)),
+                       COUNT(*) FILTER (WHERE g.created_at >= CAST(:midpoint AS TIMESTAMP))
                 FROM statistic_update_time ut
                 JOIN statistic_games g ON g.id = ut.statistic_game_id
                 WHERE 1 = 1
@@ -62,6 +77,7 @@ public class StatisticUpdateTimeRepository {
                 GROUP BY ut.name
                 ORDER BY 5 DESC, ut.name ASC
                 """);
+        query.setParameter("midpoint", midpoint);
         bindFilter(query, gameType, fromDate);
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
@@ -71,7 +87,11 @@ public class StatisticUpdateTimeRepository {
                 ((Number) row[2]).longValue(),
                 ((Number) row[3]).doubleValue(),
                 ((Number) row[4]).doubleValue(),
-                ((Number) row[5]).longValue()
+                ((Number) row[5]).longValue(),
+                row[6] == null ? null : ((Number) row[6]).doubleValue(),
+                row[7] == null ? null : ((Number) row[7]).doubleValue(),
+                ((Number) row[8]).longValue(),
+                ((Number) row[9]).longValue()
         )).toList();
     }
 

@@ -45,7 +45,8 @@ class StatisticPerformanceControllerTest {
     }
 
     private final SystemTimingDto frame =
-            new SystemTimingDto("Frame", 5_000_000L, 90_000_000L, 30_000_000.0, 48_000_000.0, 5);
+            new SystemTimingDto("Frame", 5_000_000L, 90_000_000L, 30_000_000.0, 48_000_000.0, 5,
+                    40_000_000.0, 56_000_000.0, 12, 9);
 
     private Model render(String gameType, Integer days, String name, Integer page) {
         Model model = new ExtendedModelMap();
@@ -56,13 +57,13 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void passesTheParsedGameTypeAndDateRangeToTheService() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of(frame));
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
 
         render("PVP", 30, null, null);
 
         ArgumentCaptor<LocalDateTime> fromDate = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(service).findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.PVP), fromDate.capture());
+        verify(service).findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.PVP), fromDate.capture(), any());
         // 30일 필터이므로 기준 시각은 대략 30일 전이어야 한다.
         long days = java.time.Duration.between(fromDate.getValue(), LocalDateTime.now()).toDays();
         assertEquals(30, days);
@@ -74,31 +75,31 @@ class StatisticPerformanceControllerTest {
      */
     @Test
     void parsesPracticeDespiteItsMixedCaseEnumName() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
 
         render("Practice", 7, null, null);
-        verify(service).findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.Practice), any());
+        verify(service).findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.Practice), any(), any());
 
         render("practice", 7, null, null);
         verify(service, org.mockito.Mockito.times(2))
-                .findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.Practice), any());
+                .findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.Practice), any(), any());
     }
 
     @Test
     void treatsAllAndUnknownValuesAsNoGameTypeFilter() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
 
         render("ALL", 7, null, null);
         render("nonsense", 7, null, null);
         render(null, 7, null, null);
 
         verify(service, org.mockito.Mockito.times(3))
-                .findSystemTimings(org.mockito.ArgumentMatchers.eq(null), any());
+                .findSystemTimings(org.mockito.ArgumentMatchers.eq(null), any(), any());
     }
 
     @Test
     void clampsTheDayRangeAndDefaultsIt() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
 
         assertEquals(7, render(null, null, null, null).getAttribute("selectedDays"));
         assertEquals(7, render(null, 0, null, null).getAttribute("selectedDays"));
@@ -110,7 +111,7 @@ class StatisticPerformanceControllerTest {
     void putsTheTimingsSummaryAndPagingIntoTheModel() {
         GameFrameSummaryDto game = new GameFrameSummaryDto(
                 7L, LocalDateTime.of(2026, 8, 3, 9, 30), "PVP", 300L, 30_000_000.0, 90_000_000L);
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of(frame));
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.frameTiming(any())).thenReturn(frame);
         when(service.findRecentGames(any(), any(), anyInt(), anyInt())).thenReturn(List.of(game));
@@ -132,7 +133,7 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void gameTypeForUrlIsNullForAllSoTheLinkOmitsIt() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
 
         assertNull(render("ALL", 7, null, null).getAttribute("gameTypeForUrl"));
         assertNull(render(null, 7, null, null).getAttribute("gameTypeForUrl"));
@@ -140,7 +141,7 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void serialisesChartDataAsMillisecondsForTheBrowser() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of(frame));
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.findTimeSeries(any(), any(), any(), anyInt())).thenReturn(List.of(
                 new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 20_000_000.0, 3L)));
@@ -159,8 +160,8 @@ class StatisticPerformanceControllerTest {
     /** {@code th:utext}로 나가므로 이름에 {@code <}가 들어가도 script 요소가 먼저 닫히면 안 된다. */
     @Test
     void escapesAngleBracketsSoAMeasuredNameCannotCloseTheScriptElement() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of(
-                new SystemTimingDto("</script><script>x", 1L, 2L, 1.0, 2.0, 1)));
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(
+                new SystemTimingDto("</script><script>x", 1L, 2L, 1.0, 2.0, 1, null, null, 0, 0)));
         when(service.selectName(any(), any())).thenReturn(null);
 
         String timingsJson = (String) render(null, 7, null, null).getAttribute("timingsJson");
@@ -171,7 +172,7 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void skipsTheSeriesQueryEntirelyWhenThereIsNoNameToPlot() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
         when(service.selectName(any(), any())).thenReturn(null);
 
         Model model = render(null, 7, null, null);

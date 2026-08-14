@@ -31,7 +31,8 @@ class StatisticPerformanceServiceTest {
     }
 
     private SystemTimingDto timing(String name, double median) {
-        return new SystemTimingDto(name, 1_000_000L, 9_000_000L, median, median * 1.2, 5);
+        return new SystemTimingDto(name, 1_000_000L, 9_000_000L, median, median * 1.2, 5,
+                null, null, 0, 0);
     }
 
     @Test

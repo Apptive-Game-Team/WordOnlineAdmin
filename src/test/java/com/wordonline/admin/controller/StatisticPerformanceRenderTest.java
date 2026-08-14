@@ -51,12 +51,14 @@ class StatisticPerformanceRenderTest {
     private JwtDecoder jwtDecoder;
 
     private final SystemTimingDto frame =
-            new SystemTimingDto("Frame", 41_000_000L, 96_000_000L, 51_200_000.0, 63_400_000.0, 42);
+            new SystemTimingDto("Frame", 41_000_000L, 96_000_000L, 51_200_000.0, 63_400_000.0, 42,
+                    50_000_000.0, 70_000_000.0, 20, 22);
     private final SystemTimingDto physics =
-            new SystemTimingDto("PhysicSystem", 400_000L, 5_100_000L, 1_200_000.0, 2_400_000.0, 42);
+            new SystemTimingDto("PhysicSystem", 400_000L, 5_100_000L, 1_200_000.0, 2_400_000.0, 42,
+                    null, null, 0, 0);
 
     private void stubPopulated() {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of(frame, physics));
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame, physics));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.frameTiming(any())).thenReturn(frame);
         when(service.findTimeSeries(any(), any(), any(), anyInt())).thenReturn(List.of(
@@ -99,6 +101,11 @@ class StatisticPerformanceRenderTest {
         // 최근 게임 표와 상세 링크, 그리고 프레임 데이터가 없는 게임의 표시.
         assertThat(html).contains("/admin/statistics/performance/games/2");
         assertThat(html).contains("Page 1 of 3");
+        // 추세: Frame은 p95가 50ms → 70ms라 +40%로 악화, 빨갛게 표시되어야 한다.
+        assertThat(html).contains("▲", "40%", "text-danger fw-semibold");
+        assertThat(html).contains("전반부 p95 50.000ms (20게임) → 후반부 p95 70.000ms (22게임)");
+        // PhysicSystem은 전·후반 표본이 없으므로 방향을 지어내지 않는다.
+        assertThat(html).contains("표본 부족");
         // 렌더되지 않은 Thymeleaf 표현식이 출력에 남지 않았는지.
         assertThat(html).doesNotContain("${", "th:text");
     }
@@ -106,7 +113,7 @@ class StatisticPerformanceRenderTest {
     @Test
     @WithMockUser(authorities = "WORDONLINE_ADMIN")
     void performancePageRendersWithNoDataAtAll() throws Exception {
-        when(service.findSystemTimings(any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
         when(service.selectName(any(), any())).thenReturn(null);
         when(service.findRecentGames(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
         when(service.countRecentGames(any(), any())).thenReturn(0L);

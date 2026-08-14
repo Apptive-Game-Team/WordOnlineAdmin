@@ -30,8 +30,18 @@ public class StatisticPerformanceService {
 
     private final StatisticUpdateTimeRepository repository;
 
-    public List<SystemTimingDto> findSystemTimings(GameType gameType, LocalDateTime fromDate) {
-        return repository.findSystemTimings(gameType, fromDate);
+    public List<SystemTimingDto> findSystemTimings(GameType gameType, LocalDateTime fromDate, LocalDateTime now) {
+        return repository.findSystemTimings(gameType, fromDate, midpoint(fromDate, now));
+    }
+
+    /**
+     * 추세를 낼 때 구간을 가르는 지점. 게임 수가 아니라 시간으로 반을 나눈다.
+     * <p>
+     * 게임 수로 나누면 최근에 트래픽이 몰린 구간이 "후반부" 전체를 차지해 비교 대상이 사실상 같은
+     * 시점이 된다. 시간으로 나누면 양쪽이 같은 길이의 기간을 대표한다.
+     */
+    public LocalDateTime midpoint(LocalDateTime fromDate, LocalDateTime now) {
+        return fromDate.plus(java.time.Duration.between(fromDate, now).dividedBy(2));
     }
 
     public List<TimeSeriesPointDto> findTimeSeries(String name, GameType gameType, LocalDateTime fromDate, int days) {

@@ -52,10 +52,11 @@ public class StatisticPerformanceController {
 
         GameType type = parseGameType(gameType);
         int daysFilter = parseDays(days);
-        LocalDateTime fromDate = LocalDateTime.now().minusDays(daysFilter);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fromDate = now.minusDays(daysFilter);
         int pageIndex = page == null || page < 0 ? 0 : page;
 
-        List<SystemTimingDto> timings = statisticPerformanceService.findSystemTimings(type, fromDate);
+        List<SystemTimingDto> timings = statisticPerformanceService.findSystemTimings(type, fromDate, now);
         String selectedName = statisticPerformanceService.selectName(name, timings);
         List<TimeSeriesPointDto> series = selectedName == null
                 ? List.of()
