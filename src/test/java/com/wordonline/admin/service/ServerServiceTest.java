@@ -2,6 +2,7 @@ package com.wordonline.admin.service;
 
 import com.wordonline.admin.client.GameServerClient;
 import com.wordonline.admin.dto.server.ServerSessionCountDto;
+import com.wordonline.admin.dto.server.ServerDatabase;
 import com.wordonline.admin.entity.server.Server;
 import com.wordonline.admin.entity.server.ServerState;
 import com.wordonline.admin.entity.server.ServerType;
@@ -13,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
@@ -28,7 +30,7 @@ class ServerServiceTest {
 
     @BeforeEach
     void setUp() {
-        serverService = new ServerService(serverRepository, gameServerClient);
+        serverService = new ServerService(serverRepository, gameServerClient, Optional.empty());
     }
 
     @Test
@@ -44,7 +46,10 @@ class ServerServiceTest {
         List<ServerSessionCountDto> counts = serverService.getGameServerSessionCounts();
 
         assertEquals(
-                List.of(new ServerSessionCountDto(1L, 7), new ServerSessionCountDto(2L, 1)),
+                List.of(
+                        new ServerSessionCountDto(ServerDatabase.PRIMARY, 1L, 7),
+                        new ServerSessionCountDto(ServerDatabase.PRIMARY, 2L, 1)
+                ),
                 counts
         );
     }
@@ -57,6 +62,6 @@ class ServerServiceTest {
 
         List<ServerSessionCountDto> counts = serverService.getGameServerSessionCounts();
 
-        assertEquals(List.of(new ServerSessionCountDto(1L, null)), counts);
+        assertEquals(List.of(new ServerSessionCountDto(ServerDatabase.PRIMARY, 1L, null)), counts);
     }
 }

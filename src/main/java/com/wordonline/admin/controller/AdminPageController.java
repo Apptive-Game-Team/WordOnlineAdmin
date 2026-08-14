@@ -30,7 +30,8 @@ public class AdminPageController {
 
     @GetMapping("/")
     public String index(Model model) {
-        model.addAttribute("servers", serverService.getAllServers());
+        model.addAttribute("primaryServers", serverService.getPrimaryServers());
+        model.addAttribute("secondaryServers", serverService.getSecondaryServers());
         model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
         return "index";
     }
