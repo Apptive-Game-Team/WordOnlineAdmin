@@ -65,4 +65,19 @@ class AdminPageControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(
                         "/api/admin/servers/session-counts")));
     }
+
+    @Test
+    void indexRendersTheGrantDefaultsScript() throws Exception {
+        when(serverService.getAllServers()).thenReturn(List.of());
+        when(parameterService.hasSecondaryDatabase()).thenReturn(false);
+
+        // Scripts outside layout:fragment are dropped by the layout dialect, which left the
+        // Grant Defaults buttons without their click handlers.
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "btn-grant-default-contents-primary')")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "/api/admin/grant-default-contents")));
+    }
 }
