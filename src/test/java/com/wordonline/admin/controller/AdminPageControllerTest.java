@@ -1,7 +1,7 @@
 package com.wordonline.admin.controller;
 
 import com.wordonline.admin.client.GameServerClient;
-import com.wordonline.admin.entity.server.Server;
+import com.wordonline.admin.dto.server.ServerDto;
 import com.wordonline.admin.entity.server.ServerState;
 import com.wordonline.admin.entity.server.ServerType;
 import com.wordonline.admin.repository.parameter.GameObjectRepository;
@@ -51,16 +51,17 @@ class AdminPageControllerTest {
 
     @Test
     void indexRendersASessionBadgeAndThePollingScriptForGameServers() throws Exception {
-        when(serverService.getAllServers()).thenReturn(List.of(
-                new Server(1L, "http", "game", 8080, ServerType.GAME, ServerState.ACTIVE),
-                new Server(2L, "http", "lobby", 8080, ServerType.LOBBY, ServerState.ACTIVE)
+        when(serverService.getPrimaryServers()).thenReturn(List.of(
+                new ServerDto(1L, "http", "game", 8080, ServerType.GAME, ServerState.ACTIVE),
+                new ServerDto(2L, "http", "lobby", 8080, ServerType.LOBBY, ServerState.ACTIVE)
         ));
+        when(serverService.getSecondaryServers()).thenReturn(List.of());
         when(parameterService.hasSecondaryDatabase()).thenReturn(false);
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(
-                        "class=\"badge bg-secondary status-badge session-badge\" data-server-id=\"1\"")))
+                        "data-server-id=\"1\" data-server-database=\"PRIMARY\"")))
                 // The layout dialect only keeps markup inside layout:fragment, so the poller must live there.
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(
                         "/api/admin/servers/session-counts")));
@@ -68,7 +69,8 @@ class AdminPageControllerTest {
 
     @Test
     void indexRendersTheGrantDefaultsScript() throws Exception {
-        when(serverService.getAllServers()).thenReturn(List.of());
+        when(serverService.getPrimaryServers()).thenReturn(List.of());
+        when(serverService.getSecondaryServers()).thenReturn(List.of());
         when(parameterService.hasSecondaryDatabase()).thenReturn(false);
 
         // Scripts outside layout:fragment are dropped by the layout dialect, which left the
@@ -79,5 +81,35 @@ class AdminPageControllerTest {
                         "btn-grant-default-contents-primary')")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(
                         "/api/admin/grant-default-contents")));
+    }
+
+    @Test
+    void invalidateCacheReportsTheServersThatDidNotAnswer() throws Exception {
+        when(serverService.invalidateGameServerCaches()).thenReturn(2);
+
+        mockMvc.perform(get("/admin/invalidate-cache"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .flash().attribute("invalidateCacheError", 2));
+    }
+
+    @Test
+    void indexRendersDevServersAndDefaultsToActiveFilter() throws Exception {
+        when(serverService.getPrimaryServers()).thenReturn(List.of());
+        when(serverService.getSecondaryServers()).thenReturn(List.of(
+                new ServerDto(1L, "https", "dev-game", 8443, ServerType.GAME, ServerState.INACTIVE)
+        ));
+        when(parameterService.hasSecondaryDatabase()).thenReturn(true);
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Dev (Dev DB)")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "data-server-id=\"1\" data-server-database=\"SECONDARY\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "<option value=\"ACTIVE\" selected>ACTIVE only</option>")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "selectedState === 'ALL' || column.dataset.serverState === selectedState")));
     }
 }

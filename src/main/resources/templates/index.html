@@ -40,9 +40,21 @@
                     <p class="mb-0">Real-time monitoring of all Word Online servers</p>
                 </div>
 
+                <div class="d-flex justify-content-end align-items-center mb-4">
+                    <label for="server-state-filter" class="me-2 mb-0"><strong>Status</strong></label>
+                    <select id="server-state-filter" class="form-select" style="max-width: 180px">
+                        <option value="ACTIVE" selected>ACTIVE only</option>
+                        <option value="ALL">All</option>
+                        <option value="INACTIVE">INACTIVE only</option>
+                    </select>
+                </div>
+
                 <!-- Server Status Cards -->
-                <div class="row">
-                    <div class="col-md-6 col-lg-3 mb-4" th:each="server : ${servers}">
+                <section class="server-database-section mb-4">
+                    <h2 class="h4 mb-3">Prod (Deploy DB)</h2>
+                    <div class="row server-list">
+                    <div class="col-md-6 col-lg-3 mb-4 server-card-column" th:each="server : ${primaryServers}"
+                         th:attr="data-server-state=${server.state.name()}">
                         <div class="card server-card h-100">
                             <div class="card-body text-center">
                                 <!-- Server Type Icon -->
@@ -70,7 +82,7 @@
                                 <!-- Running Sessions (game servers only, filled in by polling) -->
                                 <div class="mb-3" th:if="${server.type.name() == 'GAME'}">
                                     <span class="badge bg-secondary status-badge session-badge"
-                                          th:attr="data-server-id=${server.id}">
+                                          th:attr="data-server-id=${server.id},data-server-database='PRIMARY'">
                                         🎯 Sessions: <span class="session-count">…</span>
                                     </span>
                                 </div>
@@ -103,15 +115,59 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                    </div>
+                    <div class="alert alert-info text-center empty-filter-result d-none" role="alert">No matching servers.</div>
+                </section>
+
+                <section class="server-database-section mb-4" th:if="${secondaryDatabaseEnabled}">
+                    <h2 class="h4 mb-3">Dev (Dev DB)</h2>
+                    <div class="row server-list">
+                        <div class="col-md-6 col-lg-3 mb-4 server-card-column" th:each="server : ${secondaryServers}"
+                             th:attr="data-server-state=${server.state.name()}">
+                            <div class="card server-card h-100">
+                                <div class="card-body text-center">
+                                    <div class="server-icon">
+                                        <span th:switch="${server.type.name()}">
+                                            <span th:case="'GAME'">🎮</span><span th:case="'LOBBY'">🏠</span>
+                                            <span th:case="'ACCOUNT'">👤</span><span th:case="'ADMIN'">⚙️</span>
+                                        </span>
+                                    </div>
+                                    <h5 class="card-title mb-3" th:text="${server.type.name()}">Server Type</h5>
+                                    <div class="mb-3">
+                                        <span class="badge status-badge"
+                                              th:classappend="${server.state.name() == 'ACTIVE' ? 'bg-success' : (server.state.name() == 'INACTIVE' ? 'bg-danger' : 'bg-warning')}"
+                                              th:text="${server.state.name()}">Status</span>
+                                    </div>
+                                    <div class="mb-3" th:if="${server.type.name() == 'GAME'}">
+                                        <span class="badge bg-secondary status-badge session-badge"
+                                              th:attr="data-server-id=${server.id},data-server-database='SECONDARY'">
+                                            🎯 Sessions: <span class="session-count">…</span>
+                                        </span>
+                                    </div>
+                                    <div class="text-start small">
+                                        <div class="mb-2"><strong>ID:</strong> <span th:text="${server.id}">1</span></div>
+                                        <div class="mb-2"><strong>Protocol:</strong> <span th:text="${server.protocol}">http</span></div>
+                                        <div class="mb-2"><strong>Domain:</strong> <span class="text-break" th:text="${server.domain}">localhost</span></div>
+                                        <div class="mb-2"><strong>Port:</strong> <span th:text="${server.port}">8080</span></div>
+                                        <div><strong>URL:</strong> <a th:href="${server.url}" target="_blank" class="text-decoration-none"><span class="text-break" th:text="${server.url}">url</span></a></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info text-center empty-filter-result d-none" role="alert">No matching servers.</div>
+                </section>
 
                 <!-- Empty State -->
-                <div th:if="${#lists.isEmpty(servers)}" class="alert alert-info text-center" role="alert">
+                <div th:if="${#lists.isEmpty(primaryServers) and (#lists.isEmpty(secondaryServers) or !secondaryDatabaseEnabled)}" class="alert alert-info text-center" role="alert">
                     <h4 class="alert-heading">No Servers Found</h4>
                     <p>There are currently no servers configured in the system.</p>
                 </div>
 
                 <!-- Action Buttons -->
+                <div th:if="${invalidateCacheError}" class="alert alert-warning text-center" role="alert">
+                    <span th:text="${invalidateCacheError}">1</span> game server(s) did not drop their cache. Check the admin server log.
+                </div>
                 <div class="mt-4 text-center">
                     <a th:href="@{/admin/invalidate-cache}" class="btn btn-primary mr-2">
                         🔄 Invalidate Cache
@@ -130,6 +186,22 @@
                 const SESSION_POLL_INTERVAL_MS = 5000;
                 let sessionPollInFlight = false;
 
+                function applyServerStateFilter() {
+                    const selectedState = document.getElementById('server-state-filter').value;
+                    document.querySelectorAll('.server-database-section').forEach(section => {
+                        let visibleCount = 0;
+                        section.querySelectorAll('.server-card-column').forEach(column => {
+                            const visible = selectedState === 'ALL' || column.dataset.serverState === selectedState;
+                            column.classList.toggle('d-none', !visible);
+                            visibleCount += visible ? 1 : 0;
+                        });
+                        section.querySelector('.empty-filter-result').classList.toggle('d-none', visibleCount !== 0);
+                    });
+                }
+
+                document.getElementById('server-state-filter').addEventListener('change', applyServerStateFilter);
+                applyServerStateFilter();
+
                 async function refreshSessionCounts() {
                     // A slow or unreachable game server must not let requests pile up.
                     if (sessionPollInFlight) {
@@ -144,9 +216,9 @@
                             throw new Error(`HTTP ${response.status}`);
                         }
                         const counts = await response.json();
-                        const countByServerId = new Map(counts.map(c => [String(c.serverId), c.sessionCount]));
+                        const countByServer = new Map(counts.map(c => [`${c.database}:${c.serverId}`, c.sessionCount]));
                         document.querySelectorAll('.session-badge').forEach(badge => {
-                            const count = countByServerId.get(badge.dataset.serverId);
+                            const count = countByServer.get(`${badge.dataset.serverDatabase}:${badge.dataset.serverId}`);
                             applySessionCount(badge, count === undefined ? null : count);
                         });
                     } catch (error) {
