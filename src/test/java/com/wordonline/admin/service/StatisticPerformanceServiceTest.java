@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.wordonline.admin.dto.statistic.SystemTimingDto;
+import com.wordonline.admin.dto.statistic.StatisticDataSource;
 import com.wordonline.admin.entity.statistic.GameType;
 import com.wordonline.admin.repository.statistic.StatisticUpdateTimeRepository;
 
@@ -73,23 +74,23 @@ class StatisticPerformanceServiceTest {
 
     @Test
     void clampsPageSizeSoAHandEditedQueryCannotRequestTheWholeTable() {
-        service().findRecentGames(GameType.PVP, from, 0, 10_000);
+        service().findRecentGames(StatisticDataSource.PRIMARY, GameType.PVP, from, 0, 10_000);
 
-        verify(repository).findRecentGames(eq(GameType.PVP), any(), eq(0), eq(200));
+        verify(repository).findRecentGames(eq(StatisticDataSource.PRIMARY), eq(GameType.PVP), any(), eq(0), eq(200));
     }
 
     @Test
     void treatsANonPositivePageSizeAsTheDefault() {
-        service().findRecentGames(null, from, 0, 0);
+        service().findRecentGames(StatisticDataSource.PRIMARY, null, from, 0, 0);
 
-        verify(repository).findRecentGames(eq(null), any(), eq(0), eq(20));
+        verify(repository).findRecentGames(eq(StatisticDataSource.PRIMARY), eq(null), any(), eq(0), eq(20));
     }
 
     @Test
     void neverRequestsANegativePage() {
-        service().findRecentGames(null, from, -3, 20);
+        service().findRecentGames(StatisticDataSource.PRIMARY, null, from, -3, 20);
 
-        verify(repository).findRecentGames(eq(null), any(), eq(0), eq(20));
+        verify(repository).findRecentGames(eq(StatisticDataSource.PRIMARY), eq(null), any(), eq(0), eq(20));
     }
 
     /**
@@ -108,9 +109,9 @@ class StatisticPerformanceServiceTest {
 
     @Test
     void passesTheBucketDerivedFromTheDayRangeToTheRepository() {
-        service().findTimeSeries("Frame", GameType.PVP, from, 365);
+        service().findTimeSeries(StatisticDataSource.PRIMARY, "Frame", GameType.PVP, from, 365);
 
-        verify(repository).findTimeSeries(eq("Frame"), eq(GameType.PVP), any(), eq("week"));
+        verify(repository).findTimeSeries(eq(StatisticDataSource.PRIMARY), eq("Frame"), eq(GameType.PVP), any(), eq("week"));
     }
 
     @Test

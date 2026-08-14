@@ -6,6 +6,8 @@ import java.util.Optional;
 
 import com.wordonline.admin.dto.statistic.GameFrameSummaryDto;
 import com.wordonline.admin.dto.statistic.GameTimingDetailDto;
+import com.wordonline.admin.dto.statistic.SessionRatePointDto;
+import com.wordonline.admin.dto.statistic.StatisticDataSource;
 import com.wordonline.admin.dto.statistic.SystemTimingDto;
 import com.wordonline.admin.dto.statistic.TimeSeriesPointDto;
 import com.wordonline.admin.entity.statistic.GameType;
@@ -30,8 +32,14 @@ public class StatisticPerformanceService {
 
     private final StatisticUpdateTimeRepository repository;
 
-    public List<SystemTimingDto> findSystemTimings(GameType gameType, LocalDateTime fromDate, LocalDateTime now) {
-        return repository.findSystemTimings(gameType, fromDate, midpoint(fromDate, now));
+    public List<SystemTimingDto> findSystemTimings(StatisticDataSource dataSource, GameType gameType,
+                                                   LocalDateTime fromDate, LocalDateTime now) {
+        return repository.findSystemTimings(dataSource, gameType, fromDate, midpoint(fromDate, now));
+    }
+
+    /** 보조 데이터베이스가 설정되어 있을 때만 화면에 토글을 노출한다. */
+    public boolean isSecondaryAvailable() {
+        return repository.isSecondaryAvailable();
     }
 
     /**
@@ -44,8 +52,9 @@ public class StatisticPerformanceService {
         return fromDate.plus(java.time.Duration.between(fromDate, now).dividedBy(2));
     }
 
-    public List<TimeSeriesPointDto> findTimeSeries(String name, GameType gameType, LocalDateTime fromDate, int days) {
-        return repository.findTimeSeries(name, gameType, fromDate, bucketUnit(days));
+    public List<TimeSeriesPointDto> findTimeSeries(StatisticDataSource dataSource, String name, GameType gameType,
+                                                  LocalDateTime fromDate, int days) {
+        return repository.findTimeSeries(dataSource, name, gameType, fromDate, bucketUnit(days));
     }
 
     /**
@@ -64,6 +73,40 @@ public class StatisticPerformanceService {
         return "week";
     }
 
+    /**
+     * 구간별 세션 수를 시간당으로 환산해 돌려준다.
+     * <p>
+     * 구간 길이가 범위에 따라 달라지므로 개수 그대로는 범위를 바꿔가며 비교할 수 없다. 시간당으로
+     * 나누면 어느 범위에서도 같은 축이 된다.
+     * <p>
+     * 범위에 잘린 구간은 {@code partial}로 표시한다. 특히 진행 중인 마지막 구간은 아직 다 차지
+     * 않았을 뿐인데, 표시하지 않으면 트래픽 급감으로 잘못 읽힌다.
+     */
+    public List<SessionRatePointDto> findSessionRate(StatisticDataSource dataSource, GameType gameType,
+                                                     LocalDateTime fromDate, LocalDateTime now, int days) {
+        String bucket = bucketUnit(days);
+        long hours = bucketHours(bucket);
+        return repository.findSessionCounts(dataSource, gameType, fromDate, bucket).stream()
+                .map(count -> {
+                    LocalDateTime end = count.bucketStart().plusHours(hours);
+                    boolean partial = count.bucketStart().isBefore(fromDate) || end.isAfter(now);
+                    return new SessionRatePointDto(
+                            count.bucketStart(),
+                            count.gameCount(),
+                            count.gameCount() / (double) hours,
+                            partial);
+                })
+                .toList();
+    }
+
+    long bucketHours(String bucket) {
+        return switch (bucket) {
+            case "hour" -> 1;
+            case "day" -> 24;
+            default -> 24 * 7;
+        };
+    }
+
     /** 화면에 구간 단위를 알려 주기 위한 표시용 문자열. */
     public String bucketLabel(int days) {
         return switch (bucketUnit(days)) {
@@ -73,20 +116,21 @@ public class StatisticPerformanceService {
         };
     }
 
-    public List<GameFrameSummaryDto> findRecentGames(GameType gameType, LocalDateTime fromDate, int page, int size) {
-        return repository.findRecentGames(gameType, fromDate, Math.max(page, 0), clampSize(size));
+    public List<GameFrameSummaryDto> findRecentGames(StatisticDataSource dataSource, GameType gameType,
+                                                     LocalDateTime fromDate, int page, int size) {
+        return repository.findRecentGames(dataSource, gameType, fromDate, Math.max(page, 0), clampSize(size));
     }
 
-    public long countRecentGames(GameType gameType, LocalDateTime fromDate) {
-        return repository.countRecentGames(gameType, fromDate);
+    public long countRecentGames(StatisticDataSource dataSource, GameType gameType, LocalDateTime fromDate) {
+        return repository.countRecentGames(dataSource, gameType, fromDate);
     }
 
-    public Optional<GameFrameSummaryDto> findGame(long gameId) {
-        return repository.findGame(gameId);
+    public Optional<GameFrameSummaryDto> findGame(StatisticDataSource dataSource, long gameId) {
+        return repository.findGame(dataSource, gameId);
     }
 
-    public List<GameTimingDetailDto> findGameTimings(long gameId) {
-        return repository.findGameTimings(gameId);
+    public List<GameTimingDetailDto> findGameTimings(StatisticDataSource dataSource, long gameId) {
+        return repository.findGameTimings(dataSource, gameId);
     }
 
     public int totalPages(long totalCount, int size) {

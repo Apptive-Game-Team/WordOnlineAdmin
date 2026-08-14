@@ -12,7 +12,25 @@
 
 <div layout:fragment="content">
     <div class="container">
-        <h1>Frame Timing</h1>
+        <div class="d-flex align-items-center gap-3">
+            <h1 class="mb-0">Frame Timing</h1>
+            <!-- 보조 데이터베이스가 설정된 환경에서만 토글이 뜬다. -->
+            <div th:if="${secondaryAvailable}" class="btn-group btn-group-sm" role="group">
+                <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName})}"
+                   th:classappend="${selectedDb == 'PRIMARY'} ? 'active' : ''"
+                   class="btn btn-outline-dark">운영 DB</a>
+                <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, db='SECONDARY')}"
+                   th:classappend="${selectedDb == 'SECONDARY'} ? 'active' : ''"
+                   class="btn btn-outline-dark">개발 DB</a>
+            </div>
+            <span th:unless="${secondaryAvailable}" class="badge text-bg-light"
+                  title="DEV_DATABASE_URL이 설정되면 개발 DB 토글이 나타난다">운영 DB</span>
+        </div>
+        <!-- 어느 DB를 보고 있는지 항상 드러나야 한다. 숫자만 보고 환경을 착각하면 안 된다. -->
+        <p class="text-muted small mt-2"
+           th:if="${selectedDb == 'SECONDARY'}">
+            지금 <strong>개발 DB</strong>를 보고 있다.
+        </p>
 
         <!-- Game Type and Date Filter -->
         <div class="card mt-4">
@@ -21,13 +39,13 @@
                     <div class="col-md-6">
                         <h5>Filter by Game Type</h5>
                         <div class="btn-group" role="group">
-                            <a th:href="@{/admin/statistics/performance(days=${selectedDays}, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(days=${selectedDays}, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedGameType == 'ALL'} ? 'active' : ''"
                                class="btn btn-outline-primary">All Games</a>
-                            <a th:href="@{/admin/statistics/performance(gameType='PVP', days=${selectedDays}, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(gameType='PVP', days=${selectedDays}, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedGameType == 'PVP'} ? 'active' : ''"
                                class="btn btn-outline-primary">PVP</a>
-                            <a th:href="@{/admin/statistics/performance(gameType='Practice', days=${selectedDays}, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(gameType='Practice', days=${selectedDays}, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedGameType == 'Practice'} ? 'active' : ''"
                                class="btn btn-outline-primary">Practice</a>
                         </div>
@@ -36,16 +54,16 @@
                     <div class="col-md-6">
                         <h5>Filter by Date Range</h5>
                         <div class="btn-group" role="group">
-                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=1, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=1, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedDays == 1} ? 'active' : ''"
                                class="btn btn-outline-secondary">1 Day</a>
-                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=7, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=7, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedDays == 7} ? 'active' : ''"
                                class="btn btn-outline-secondary">7 Days</a>
-                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=30, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=30, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedDays == 30} ? 'active' : ''"
                                class="btn btn-outline-secondary">30 Days</a>
-                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=365, name=${selectedName})}"
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=365, name=${selectedName}, db=${dbForUrl})}"
                                th:classappend="${selectedDays == 365} ? 'active' : ''"
                                class="btn btn-outline-secondary">1 Year</a>
                         </div>
@@ -168,11 +186,27 @@
                             </td>
                             <td>
                                 <a class="btn btn-sm btn-outline-primary"
-                                   th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${timing.name()})}">Plot</a>
+                                   th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${timing.name()}, db=${dbForUrl})}">Plot</a>
                             </td>
                         </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session rate -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>세션 처리량 (시간당)</h5>
+                <p class="text-muted small">
+                    <span th:text="${bucketLabel}">일</span> 단위로 끝난 게임 수를 시간당으로 환산했다.
+                    구간 길이가 조회 범위에 따라 달라지므로 개수가 아니라 시간당으로 봐야 범위를 바꿔가며
+                    비교할 수 있다. 범위에 잘린 구간(특히 진행 중인 마지막 구간)은 점선으로 표시한다 —
+                    아직 다 차지 않았을 뿐이지 트래픽이 준 것이 아니다.
+                </p>
+                <div style="position: relative; height: 260px;">
+                    <canvas id="sessionRateChart"></canvas>
                 </div>
             </div>
         </div>
@@ -210,7 +244,7 @@
                     <tbody>
                     <tr th:each="game : ${games}">
                         <td>
-                            <a th:href="@{/admin/statistics/performance/games/{id}(id=${game.gameId()})}"
+                            <a th:href="@{/admin/statistics/performance/games/{id}(id=${game.gameId()}, db=${dbForUrl})}"
                                th:text="${game.gameId()}">0</a>
                         </td>
                         <td th:text="${#temporals.format(game.createdAt(), 'yyyy-MM-dd HH:mm:ss')}">-</td>
@@ -229,14 +263,14 @@
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item" th:classappend="${page == 0} ? 'disabled' : ''">
                             <a class="page-link"
-                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page - 1})}">Previous</a>
+                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page - 1}, db=${dbForUrl})}">Previous</a>
                         </li>
                         <li class="page-item disabled">
                             <span class="page-link" th:text="'Page ' + (${page} + 1) + ' of ' + ${totalPages}">Page</span>
                         </li>
                         <li class="page-item" th:classappend="${page + 1 >= totalPages} ? 'disabled' : ''">
                             <a class="page-link"
-                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page + 1})}">Next</a>
+                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page + 1}, db=${dbForUrl})}">Next</a>
                         </li>
                     </ul>
                 </nav>
@@ -250,6 +284,7 @@
     -->
     <script id="timingData" type="application/json" th:utext="${timingsJson}">[]</script>
     <script id="seriesData" type="application/json" th:utext="${seriesJson}">[]</script>
+    <script id="sessionRateData" type="application/json" th:utext="${sessionRateJson}">[]</script>
     <script th:src="@{/js/statistic-performance.js}"></script>
 </div>
 

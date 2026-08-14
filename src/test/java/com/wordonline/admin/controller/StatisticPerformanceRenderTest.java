@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -58,19 +59,19 @@ class StatisticPerformanceRenderTest {
                     null, null, 0, 0);
 
     private void stubPopulated() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame, physics));
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame, physics));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.frameTiming(any())).thenReturn(frame);
-        when(service.findTimeSeries(any(), any(), any(), anyInt())).thenReturn(List.of(
+        when(service.findTimeSeries(any(), any(), any(), any(), anyInt())).thenReturn(List.of(
                 new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 1, 10, 0), 47_000_000.0, 12L),
                 new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 62_900_000.0, 9L)));
-        when(service.findRecentGames(any(), any(), anyInt(), anyInt())).thenReturn(List.of(
+        when(service.findRecentGames(any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of(
                 new GameFrameSummaryDto(2L, LocalDateTime.of(2026, 8, 2, 10, 0), "PVP", 302L,
                         62_900_000.0, 96_000_000L),
                 // 프레임 행이 없는 게임도 목록에 남아야 한다.
                 new GameFrameSummaryDto(3L, LocalDateTime.of(2026, 8, 1, 10, 0), "Practice", 60L,
                         null, null)));
-        when(service.countRecentGames(any(), any())).thenReturn(45L);
+        when(service.countRecentGames(any(), any(), any())).thenReturn(45L);
         when(service.totalPages(anyLong(), anyInt())).thenReturn(3);
     }
 
@@ -113,10 +114,10 @@ class StatisticPerformanceRenderTest {
     @Test
     @WithMockUser(authorities = "WORDONLINE_ADMIN")
     void performancePageRendersWithNoDataAtAll() throws Exception {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of());
         when(service.selectName(any(), any())).thenReturn(null);
-        when(service.findRecentGames(any(), any(), anyInt(), anyInt())).thenReturn(List.of());
-        when(service.countRecentGames(any(), any())).thenReturn(0L);
+        when(service.findRecentGames(any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(service.countRecentGames(any(), any(), any())).thenReturn(0L);
         when(service.totalPages(anyLong(), anyInt())).thenReturn(0);
 
         String html = render("/admin/statistics/performance");
@@ -128,9 +129,9 @@ class StatisticPerformanceRenderTest {
     @Test
     @WithMockUser(authorities = "WORDONLINE_ADMIN")
     void gameDetailPageRendersEveryMeasuredName() throws Exception {
-        when(service.findGame(anyLong())).thenReturn(Optional.of(new GameFrameSummaryDto(
+        when(service.findGame(any(), anyLong())).thenReturn(Optional.of(new GameFrameSummaryDto(
                 2L, LocalDateTime.of(2026, 8, 2, 10, 0), "PVP", 302L, 62_900_000.0, 96_000_000L)));
-        when(service.findGameTimings(anyLong())).thenReturn(List.of(
+        when(service.findGameTimings(any(), anyLong())).thenReturn(List.of(
                 new GameTimingDetailDto("Frame", 41_000_000L, 96_000_000L, 62_900_000.0),
                 new GameTimingDetailDto("PhysicSystem", 400_000L, 5_100_000L, 1_200_000.0)));
 
@@ -143,7 +144,7 @@ class StatisticPerformanceRenderTest {
     @Test
     @WithMockUser(authorities = "WORDONLINE_ADMIN")
     void gameDetailPageRendersAMessageForAnUnknownGame() throws Exception {
-        when(service.findGame(anyLong())).thenReturn(Optional.empty());
+        when(service.findGame(any(), anyLong())).thenReturn(Optional.empty());
 
         String html = render("/admin/statistics/performance/games/404");
 

@@ -53,6 +53,50 @@
         });
     }
 
+    var rate = readJson('sessionRateData');
+    var rateCanvas = document.getElementById('sessionRateChart');
+    if (rateCanvas && rate.length) {
+        new Chart(rateCanvas, {
+            type: 'bar',
+            data: {
+                labels: rate.map(function (p) { return p.at; }),
+                datasets: [{
+                    label: 'games / hour',
+                    data: rate.map(function (p) { return p.perHour; }),
+                    // 잘린 구간은 옅게 칠해 "값이 낮다"와 "아직 안 찼다"를 구분한다.
+                    backgroundColor: rate.map(function (p) {
+                        return p.partial ? 'rgba(13, 110, 253, 0.25)' : 'rgba(13, 110, 253, 0.7)';
+                    }),
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: rate.map(function (p) { return p.partial ? 1 : 0; })
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function (item) {
+                                var point = rate[item.dataIndex];
+                                if (!point) {
+                                    return '';
+                                }
+                                return point.games + ' games' + (point.partial ? ' (구간이 잘림)' : '');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: { display: true, text: 'games / hour' },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
     var series = readJson('seriesData');
     var seriesCanvas = document.getElementById('seriesChart');
     if (seriesCanvas && series.length) {

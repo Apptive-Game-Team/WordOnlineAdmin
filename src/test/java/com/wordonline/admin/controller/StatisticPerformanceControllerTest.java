@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,20 +51,20 @@ class StatisticPerformanceControllerTest {
 
     private Model render(String gameType, Integer days, String name, Integer page) {
         Model model = new ExtendedModelMap();
-        String view = controller().getPerformance(gameType, days, name, page, model);
+        String view = controller().getPerformance(gameType, days, name, page, null, model);
         assertEquals("admin-statistics-performance", view);
         return model;
     }
 
     @Test
     void passesTheParsedGameTypeAndDateRangeToTheService() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame));
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
 
         render("PVP", 30, null, null);
 
         ArgumentCaptor<LocalDateTime> fromDate = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(service).findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.PVP), fromDate.capture(), any());
+        verify(service).findSystemTimings(any(), org.mockito.ArgumentMatchers.eq(GameType.PVP), fromDate.capture(), any());
         // 30일 필터이므로 기준 시각은 대략 30일 전이어야 한다.
         long days = java.time.Duration.between(fromDate.getValue(), LocalDateTime.now()).toDays();
         assertEquals(30, days);
@@ -75,31 +76,31 @@ class StatisticPerformanceControllerTest {
      */
     @Test
     void parsesPracticeDespiteItsMixedCaseEnumName() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of());
 
         render("Practice", 7, null, null);
-        verify(service).findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.Practice), any(), any());
+        verify(service).findSystemTimings(any(), org.mockito.ArgumentMatchers.eq(GameType.Practice), any(), any());
 
         render("practice", 7, null, null);
         verify(service, org.mockito.Mockito.times(2))
-                .findSystemTimings(org.mockito.ArgumentMatchers.eq(GameType.Practice), any(), any());
+                .findSystemTimings(any(), org.mockito.ArgumentMatchers.eq(GameType.Practice), any(), any());
     }
 
     @Test
     void treatsAllAndUnknownValuesAsNoGameTypeFilter() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of());
 
         render("ALL", 7, null, null);
         render("nonsense", 7, null, null);
         render(null, 7, null, null);
 
         verify(service, org.mockito.Mockito.times(3))
-                .findSystemTimings(org.mockito.ArgumentMatchers.eq(null), any(), any());
+                .findSystemTimings(any(), org.mockito.ArgumentMatchers.eq(null), any(), any());
     }
 
     @Test
     void clampsTheDayRangeAndDefaultsIt() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of());
 
         assertEquals(7, render(null, null, null, null).getAttribute("selectedDays"));
         assertEquals(7, render(null, 0, null, null).getAttribute("selectedDays"));
@@ -111,11 +112,11 @@ class StatisticPerformanceControllerTest {
     void putsTheTimingsSummaryAndPagingIntoTheModel() {
         GameFrameSummaryDto game = new GameFrameSummaryDto(
                 7L, LocalDateTime.of(2026, 8, 3, 9, 30), "PVP", 300L, 30_000_000.0, 90_000_000L);
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame));
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.frameTiming(any())).thenReturn(frame);
-        when(service.findRecentGames(any(), any(), anyInt(), anyInt())).thenReturn(List.of(game));
-        when(service.countRecentGames(any(), any())).thenReturn(45L);
+        when(service.findRecentGames(any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of(game));
+        when(service.countRecentGames(any(), any(), any())).thenReturn(45L);
         when(service.totalPages(anyLong(), anyInt())).thenReturn(3);
 
         Model model = render("PVP", 7, null, 1);
@@ -133,7 +134,7 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void gameTypeForUrlIsNullForAllSoTheLinkOmitsIt() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of());
 
         assertNull(render("ALL", 7, null, null).getAttribute("gameTypeForUrl"));
         assertNull(render(null, 7, null, null).getAttribute("gameTypeForUrl"));
@@ -141,9 +142,9 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void serialisesChartDataAsMillisecondsForTheBrowser() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(frame));
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame));
         when(service.selectName(any(), any())).thenReturn("Frame");
-        when(service.findTimeSeries(any(), any(), any(), anyInt())).thenReturn(List.of(
+        when(service.findTimeSeries(any(), any(), any(), any(), anyInt())).thenReturn(List.of(
                 new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 20_000_000.0, 3L)));
 
         Model model = render(null, 7, null, null);
@@ -160,7 +161,7 @@ class StatisticPerformanceControllerTest {
     /** {@code th:utext}로 나가므로 이름에 {@code <}가 들어가도 script 요소가 먼저 닫히면 안 된다. */
     @Test
     void escapesAngleBracketsSoAMeasuredNameCannotCloseTheScriptElement() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of(
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(
                 new SystemTimingDto("</script><script>x", 1L, 2L, 1.0, 2.0, 1, null, null, 0, 0)));
         when(service.selectName(any(), any())).thenReturn(null);
 
@@ -172,12 +173,12 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void skipsTheSeriesQueryEntirelyWhenThereIsNoNameToPlot() {
-        when(service.findSystemTimings(any(), any(), any())).thenReturn(List.of());
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of());
         when(service.selectName(any(), any())).thenReturn(null);
 
         Model model = render(null, 7, null, null);
 
-        verify(service, org.mockito.Mockito.never()).findTimeSeries(any(), any(), any(), anyInt());
+        verify(service, org.mockito.Mockito.never()).findTimeSeries(any(), any(), any(), any(), anyInt());
         assertEquals("[]", model.getAttribute("seriesJson"));
     }
 
@@ -186,11 +187,11 @@ class StatisticPerformanceControllerTest {
         GameFrameSummaryDto game = new GameFrameSummaryDto(
                 7L, LocalDateTime.of(2026, 8, 3, 9, 30), "PVP", 300L, 30_000_000.0, 90_000_000L);
         GameTimingDetailDto timing = new GameTimingDetailDto("Frame", 5_000_000L, 90_000_000L, 30_000_000.0);
-        when(service.findGame(7L)).thenReturn(Optional.of(game));
-        when(service.findGameTimings(7L)).thenReturn(List.of(timing));
+        when(service.findGame(any(), eq(7L))).thenReturn(Optional.of(game));
+        when(service.findGameTimings(any(), eq(7L))).thenReturn(List.of(timing));
 
         Model model = new ExtendedModelMap();
-        assertEquals("admin-statistics-game", controller().getGameDetail(7L, model));
+        assertEquals("admin-statistics-game", controller().getGameDetail(7L, null, model));
 
         assertEquals(game, model.getAttribute("game"));
         assertEquals(List.of(timing), model.getAttribute("timings"));
@@ -198,13 +199,13 @@ class StatisticPerformanceControllerTest {
 
     @Test
     void gameDetailRendersTheNotFoundStateWithoutQueryingTimings() {
-        when(service.findGame(anyLong())).thenReturn(Optional.empty());
+        when(service.findGame(any(), anyLong())).thenReturn(Optional.empty());
 
         Model model = new ExtendedModelMap();
-        assertEquals("admin-statistics-game", controller().getGameDetail(404L, model));
+        assertEquals("admin-statistics-game", controller().getGameDetail(404L, null, model));
 
         assertNull(model.getAttribute("game"));
         assertEquals(List.of(), model.getAttribute("timings"));
-        verify(service, org.mockito.Mockito.never()).findGameTimings(anyLong());
+        verify(service, org.mockito.Mockito.never()).findGameTimings(any(), anyLong());
     }
 }

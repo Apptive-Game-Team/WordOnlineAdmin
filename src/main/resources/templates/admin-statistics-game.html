@@ -13,6 +13,7 @@
     <div class="container">
         <p>
             <a th:href="@{/admin/statistics/performance}">&larr; Back to frame timing</a>
+            <span class="badge text-bg-light ms-2" th:text="${selectedDbLabel} + ' DB'">운영 DB</span>
         </p>
 
         <div th:if="${game == null}">

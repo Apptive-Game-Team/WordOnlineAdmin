@@ -7,6 +7,8 @@ import java.util.List;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wordonline.admin.dto.statistic.GameFrameSummaryDto;
+import com.wordonline.admin.dto.statistic.SessionRatePointDto;
+import com.wordonline.admin.dto.statistic.StatisticDataSource;
 import com.wordonline.admin.dto.statistic.SystemTimingDto;
 import com.wordonline.admin.dto.statistic.TimeSeriesPointDto;
 import com.wordonline.admin.entity.statistic.GameType;
@@ -48,22 +50,24 @@ public class StatisticPerformanceController {
             @RequestParam(required = false) Integer days,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) String db,
             Model model) {
 
+        StatisticDataSource dataSource = StatisticDataSource.parse(db);
         GameType type = parseGameType(gameType);
         int daysFilter = parseDays(days);
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime fromDate = now.minusDays(daysFilter);
         int pageIndex = page == null || page < 0 ? 0 : page;
 
-        List<SystemTimingDto> timings = statisticPerformanceService.findSystemTimings(type, fromDate, now);
+        List<SystemTimingDto> timings = statisticPerformanceService.findSystemTimings(dataSource, type, fromDate, now);
         String selectedName = statisticPerformanceService.selectName(name, timings);
         List<TimeSeriesPointDto> series = selectedName == null
                 ? List.of()
-                : statisticPerformanceService.findTimeSeries(selectedName, type, fromDate, daysFilter);
+                : statisticPerformanceService.findTimeSeries(dataSource, selectedName, type, fromDate, daysFilter);
         List<GameFrameSummaryDto> games = statisticPerformanceService.findRecentGames(
-                type, fromDate, pageIndex, StatisticPerformanceService.DEFAULT_PAGE_SIZE);
-        long totalCount = statisticPerformanceService.countRecentGames(type, fromDate);
+                dataSource, type, fromDate, pageIndex, StatisticPerformanceService.DEFAULT_PAGE_SIZE);
+        long totalCount = statisticPerformanceService.countRecentGames(dataSource, type, fromDate);
 
         model.addAttribute("selectedGameType", gameType != null ? gameType : "ALL");
         model.addAttribute("gameTypeForUrl", gameTypeForUrl(gameType));
@@ -78,18 +82,30 @@ public class StatisticPerformanceController {
         model.addAttribute("totalPages", statisticPerformanceService.totalPages(
                 totalCount, StatisticPerformanceService.DEFAULT_PAGE_SIZE));
         model.addAttribute("bucketLabel", statisticPerformanceService.bucketLabel(daysFilter));
+        model.addAttribute("selectedDb", dataSource.name());
+        model.addAttribute("selectedDbLabel", dataSource.label());
+        model.addAttribute("secondaryAvailable", statisticPerformanceService.isSecondaryAvailable());
+        model.addAttribute("dbForUrl", dataSource == StatisticDataSource.PRIMARY ? null : dataSource.name());
+        model.addAttribute("sessionRateJson", toJson(
+                statisticPerformanceService.findSessionRate(dataSource, type, fromDate, now, daysFilter).stream()
+                        .map(RatePoint::of)
+                        .toList()));
         model.addAttribute("timingsJson", toJson(timings.stream().map(ChartPoint::of).toList()));
         model.addAttribute("seriesJson", toJson(series.stream().map(SeriesPoint::of).toList()));
         return "admin-statistics-performance";
     }
 
     @GetMapping("/games/{gameId}")
-    public String getGameDetail(@PathVariable long gameId, Model model) {
-        GameFrameSummaryDto game = statisticPerformanceService.findGame(gameId).orElse(null);
+    public String getGameDetail(@PathVariable long gameId,
+                                @RequestParam(required = false) String db,
+                                Model model) {
+        StatisticDataSource dataSource = StatisticDataSource.parse(db);
+        GameFrameSummaryDto game = statisticPerformanceService.findGame(dataSource, gameId).orElse(null);
         model.addAttribute("game", game);
+        model.addAttribute("selectedDbLabel", dataSource.label());
         model.addAttribute("timings", game == null
                 ? List.of()
-                : statisticPerformanceService.findGameTimings(gameId));
+                : statisticPerformanceService.findGameTimings(dataSource, gameId));
         model.addAttribute("frameBudgetMs", StatisticPerformanceService.FRAME_BUDGET_NS / 1_000_000.0);
         return "admin-statistics-game";
     }
@@ -98,6 +114,13 @@ public class StatisticPerformanceController {
     private record ChartPoint(String name, double median, double p95) {
         static ChartPoint of(SystemTimingDto timing) {
             return new ChartPoint(timing.name(), timing.medianMeanIntervalMs(), timing.p95MeanIntervalMs());
+        }
+    }
+
+    private record RatePoint(String at, double perHour, long games, boolean partial) {
+        static RatePoint of(SessionRatePointDto point) {
+            return new RatePoint(
+                    point.bucketStart().toString(), point.gamesPerHour(), point.gameCount(), point.partial());
         }
     }
 
