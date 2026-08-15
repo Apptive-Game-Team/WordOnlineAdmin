@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Performance</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <div class="d-flex align-items-center gap-3">
+            <h1 class="mb-0">Frame Timing</h1>
+            <!-- 보조 데이터베이스가 설정된 환경에서만 토글이 뜬다. -->
+            <div th:if="${secondaryAvailable}" class="btn-group btn-group-sm" role="group">
+                <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName})}"
+                   th:classappend="${selectedDb == 'PRIMARY'} ? 'active' : ''"
+                   class="btn btn-outline-dark">운영 DB</a>
+                <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, db='SECONDARY')}"
+                   th:classappend="${selectedDb == 'SECONDARY'} ? 'active' : ''"
+                   class="btn btn-outline-dark">개발 DB</a>
+            </div>
+            <span th:unless="${secondaryAvailable}" class="badge text-bg-light"
+                  title="DEV_DATABASE_URL이 설정되면 개발 DB 토글이 나타난다">운영 DB</span>
+        </div>
+        <!-- 어느 DB를 보고 있는지 항상 드러나야 한다. 숫자만 보고 환경을 착각하면 안 된다. -->
+        <p class="text-muted small mt-2"
+           th:if="${selectedDb == 'SECONDARY'}">
+            지금 <strong>개발 DB</strong>를 보고 있다.
+        </p>
+
+        <!-- Game Type and Date Filter -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Filter by Game Type</h5>
+                        <div class="btn-group" role="group">
+                            <a th:href="@{/admin/statistics/performance(days=${selectedDays}, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedGameType == 'ALL'} ? 'active' : ''"
+                               class="btn btn-outline-primary">All Games</a>
+                            <a th:href="@{/admin/statistics/performance(gameType='PVP', days=${selectedDays}, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedGameType == 'PVP'} ? 'active' : ''"
+                               class="btn btn-outline-primary">PVP</a>
+                            <a th:href="@{/admin/statistics/performance(gameType='Practice', days=${selectedDays}, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedGameType == 'Practice'} ? 'active' : ''"
+                               class="btn btn-outline-primary">Practice</a>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5>Filter by Date Range</h5>
+                        <div class="btn-group" role="group">
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=1, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedDays == 1} ? 'active' : ''"
+                               class="btn btn-outline-secondary">1 Day</a>
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=7, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedDays == 7} ? 'active' : ''"
+                               class="btn btn-outline-secondary">7 Days</a>
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=30, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedDays == 30} ? 'active' : ''"
+                               class="btn btn-outline-secondary">30 Days</a>
+                            <a th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=365, name=${selectedName}, db=${dbForUrl})}"
+                               th:classappend="${selectedDays == 365} ? 'active' : ''"
+                               class="btn btn-outline-secondary">1 Year</a>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mt-3 mb-0">
+                    봇 자동 대전이 만들어내는 합성 게임은 실제 매치와 같은 테이블에
+                    <code>Practice</code>로 저장된다. 실제 매치 지표만 보려면 PVP로 좁혀야 한다.
+                </p>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Games</h6>
+                        <p class="h4 mt-2 mb-0" th:text="${totalCount}">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Frame median</h6>
+                        <p class="h4 mt-2 mb-0"
+                           th:if="${frameTiming != null}"
+                           th:classappend="${frameTiming.medianMeanIntervalMs() > frameBudgetMs} ? 'text-danger' : 'text-success'"
+                           th:text="${#numbers.formatDecimal(frameTiming.medianMeanIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                        <p class="h4 mt-2 mb-0 text-muted" th:if="${frameTiming == null}">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Frame p95</h6>
+                        <p class="h4 mt-2 mb-0"
+                           th:if="${frameTiming != null}"
+                           th:classappend="${frameTiming.p95MeanIntervalMs() > frameBudgetMs} ? 'text-danger' : 'text-success'"
+                           th:text="${#numbers.formatDecimal(frameTiming.p95MeanIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                        <p class="h4 mt-2 mb-0 text-muted" th:if="${frameTiming == null}">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle text-muted">Worst frame</h6>
+                        <p class="h4 mt-2 mb-0"
+                           th:if="${frameTiming != null}"
+                           th:text="${#numbers.formatDecimal(frameTiming.maxIntervalMs(), 1, 2)} + ' ms'">0 ms</p>
+                        <p class="h4 mt-2 mb-0 text-muted" th:if="${frameTiming == null}">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="text-muted small mt-2">
+            20 FPS 기준 프레임 예산은 <span th:text="${#numbers.formatDecimal(frameBudgetMs, 1, 2)}">50.00</span> ms다.
+            중앙값과 95 백분위수는 게임별 평균값들의 분포이며, 평균을 다시 평균낸 값이 아니다.
+        </p>
+
+        <!-- Per-name timings -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>Per-name timings (slowest first)</h5>
+                <p class="text-muted small">
+                    추세는 조회 구간을 시간으로 반 갈라 <strong>p95</strong>를 비교한 값이다. median이
+                    아닌 이유는 <code>Frame</code> 때문이다. 루프가 남는 시간을 자므로 프레임 간격은
+                    작업량과 무관하게 예산 50ms에 붙박여 있고, 예산을 넘긴 프레임만 그 위로 튄다.
+                    median으로는 바로 그 회귀가 보이지 않는다. 양쪽 절반에 각각 5게임 이상 있을 때만
+                    방향을 표시하고, 10% 이내 변화는 <code>≈</code>로 둔다.
+                </p>
+                <p class="text-muted" th:if="${timings.isEmpty()}">기록된 타이밍 통계가 없다.</p>
+                <div th:unless="${timings.isEmpty()}">
+                    <!--
+                      가로 막대는 이름 수만큼 행이 늘어나므로 높이를 이름 수에서 계산한다. 컨테이너에
+                      높이를 주지 않으면 maintainAspectRatio:false인 차트가 채울 높이를 찾지 못해
+                      세로로 계속 늘어난다.
+                    -->
+                    <div th:style="'position: relative; height: ' + ${28 * timings.size() + 60} + 'px;'">
+                        <canvas id="timingChart"></canvas>
+                    </div>
+                    <table class="table table-sm table-striped mt-3">
+                        <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-end">Median (ms)</th>
+                            <th class="text-end">p95 (ms)</th>
+                            <th class="text-end">Min (ms)</th>
+                            <th class="text-end">Max (ms)</th>
+                            <th class="text-end">Games</th>
+                            <th class="text-end">추세 (p95)</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="timing : ${timings}"
+                            th:classappend="${timing.name() == selectedName} ? 'table-active' : ''">
+                            <td th:text="${timing.name()}">name</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.medianMeanIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.p95MeanIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.minIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${#numbers.formatDecimal(timing.maxIntervalMs(), 1, 3)}">0</td>
+                            <td class="text-end" th:text="${timing.gameCount()}">0</td>
+                            <td class="text-end">
+                                <!-- 표본이 한쪽이라도 부족하면 방향을 말하지 않는다. -->
+                                <span th:if="${!timing.hasTrend()}" class="text-muted"
+                                      th:title="'전반부 ' + ${timing.earlierGames()} + '게임 / 후반부 ' + ${timing.laterGames()} + '게임 — 표본 부족'">–</span>
+                                <span th:if="${timing.hasTrend()}"
+                                      th:classappend="${timing.trendDirection() == 'worse'} ? 'text-danger fw-semibold'
+                                                    : (${timing.trendDirection() == 'better'} ? 'text-success' : 'text-muted')"
+                                      th:title="'전반부 p95 ' + ${#numbers.formatDecimal(timing.earlierP95Ns() / 1000000.0, 1, 3)} + 'ms (' + ${timing.earlierGames()} + '게임)'
+                                              + ' → 후반부 p95 ' + ${#numbers.formatDecimal(timing.laterP95Ns() / 1000000.0, 1, 3)} + 'ms (' + ${timing.laterGames()} + '게임)'">
+                                    <span th:text="${timing.trendDirection() == 'worse'} ? '▲'
+                                                 : (${timing.trendDirection() == 'better'} ? '▼' : '≈')">≈</span>
+                                    <span th:text="${#numbers.formatDecimal(timing.trendPercent(), 1, 0)} + '%'">0%</span>
+                                </span>
+                            </td>
+                            <td>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${timing.name()}, db=${dbForUrl})}">Plot</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session rate -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>세션 처리량 (시간당)</h5>
+                <p class="text-muted small">
+                    <span th:text="${bucketLabel}">일</span> 단위로 끝난 게임 수를 시간당으로 환산했다.
+                    구간 길이가 조회 범위에 따라 달라지므로 개수가 아니라 시간당으로 봐야 범위를 바꿔가며
+                    비교할 수 있다. 범위에 잘린 구간(특히 진행 중인 마지막 구간)은 점선으로 표시한다 —
+                    아직 다 차지 않았을 뿐이지 트래픽이 준 것이 아니다.
+                </p>
+                <div style="position: relative; height: 260px;">
+                    <canvas id="sessionRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time series -->
+        <div class="card mt-4" th:if="${selectedName != null}">
+            <div class="card-body">
+                <h5><span th:text="${selectedName}">name</span> over time</h5>
+                <p class="text-muted small">
+                    <span th:text="${bucketLabel}">일</span> 단위로 묶어 각 구간에 속한 게임별 평균의
+                    중앙값을 그린다. 게임 하나하나의 값은 아래 최근 게임 표에서 볼 수 있다.
+                </p>
+                <div style="position: relative; height: 320px;">
+                    <canvas id="seriesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent games -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5>Recent games</h5>
+                <p class="text-muted" th:if="${games.isEmpty()}">해당 기간에 게임이 없다.</p>
+                <table class="table table-sm table-striped" th:unless="${games.isEmpty()}">
+                    <thead>
+                    <tr>
+                        <th>Game</th>
+                        <th>Recorded</th>
+                        <th>Type</th>
+                        <th class="text-end">Duration (s)</th>
+                        <th class="text-end">Frame mean (ms)</th>
+                        <th class="text-end">Frame max (ms)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="game : ${games}">
+                        <td>
+                            <a th:href="@{/admin/statistics/performance/games/{id}(id=${game.gameId()}, db=${dbForUrl})}"
+                               th:text="${game.gameId()}">0</a>
+                        </td>
+                        <td th:text="${#temporals.format(game.createdAt(), 'yyyy-MM-dd HH:mm:ss')}">-</td>
+                        <td th:text="${game.gameType()}">-</td>
+                        <td class="text-end" th:text="${game.durationSeconds()}">0</td>
+                        <td class="text-end"
+                            th:classappend="${game.hasFrameData() and game.frameMeanIntervalMs() > frameBudgetMs} ? 'text-danger' : ''"
+                            th:text="${!game.hasFrameData()} ? '-' : ${#numbers.formatDecimal(game.frameMeanIntervalMs(), 1, 3)}">-</td>
+                        <td class="text-end"
+                            th:text="${game.frameMaxIntervalMs() == null} ? '-' : ${#numbers.formatDecimal(game.frameMaxIntervalMs(), 1, 3)}">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <nav th:if="${totalPages > 1}">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" th:classappend="${page == 0} ? 'disabled' : ''">
+                            <a class="page-link"
+                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page - 1}, db=${dbForUrl})}">Previous</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link" th:text="'Page ' + (${page} + 1) + ' of ' + ${totalPages}">Page</span>
+                        </li>
+                        <li class="page-item" th:classappend="${page + 1 >= totalPages} ? 'disabled' : ''">
+                            <a class="page-link"
+                               th:href="@{/admin/statistics/performance(gameType=${gameTypeForUrl}, days=${selectedDays}, name=${selectedName}, page=${page + 1}, db=${dbForUrl})}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!--
+      차트 데이터는 서버가 렌더 시점에 페이지 안에 직접 넣는다. 위의 표가 원본이므로 Chart.js가
+      로드되지 않아도 모든 수치는 그대로 보인다.
+    -->
+    <script id="timingData" type="application/json" th:utext="${timingsJson}">[]</script>
+    <script id="seriesData" type="application/json" th:utext="${seriesJson}">[]</script>
+    <script id="sessionRateData" type="application/json" th:utext="${sessionRateJson}">[]</script>
+    <script th:src="@{/js/statistic-performance.js}"></script>
+</div>
+
+</body>
+</html>

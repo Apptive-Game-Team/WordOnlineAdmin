@@ -39,6 +39,8 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // 인증된 요청으로 컨트롤러와 템플릿을 렌더하는 테스트에 필요하다.
+    testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     runtimeOnly 'org.postgresql:postgresql'
