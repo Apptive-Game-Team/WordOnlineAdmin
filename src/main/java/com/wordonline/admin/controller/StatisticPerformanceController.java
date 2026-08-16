@@ -74,6 +74,7 @@ public class StatisticPerformanceController {
         model.addAttribute("selectedDays", daysFilter);
         model.addAttribute("timings", timings);
         model.addAttribute("selectedName", selectedName);
+        model.addAttribute("combinedName", SystemTimingDto.COMBINED_SYSTEMS_NAME);
         model.addAttribute("frameTiming", statisticPerformanceService.frameTiming(timings));
         model.addAttribute("frameBudgetMs", StatisticPerformanceService.FRAME_BUDGET_NS / 1_000_000.0);
         model.addAttribute("games", games);

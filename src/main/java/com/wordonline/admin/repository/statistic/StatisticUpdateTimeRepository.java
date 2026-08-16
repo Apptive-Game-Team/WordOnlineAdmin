@@ -95,10 +95,46 @@ public class StatisticUpdateTimeRepository {
             ORDER BY p95_ns DESC, ut.name ASC
             """;
 
+    /**
+     * 게임 하나가 {@code Frame}을 뺀 이름들에 쓴 시간의 합. 합계 집계와 합계 시계열이 함께 쓴다.
+     * <p>
+     * 이름별 mean은 서로 다른(그리고 기록되지 않은) 프레임 수의 평균이지만, {@code GameSystem.update}는
+     * 프레임마다 한 번씩 도므로 같은 게임 안에서는 표본이 같은 프레임들이다. 그래서 평균들의 합을
+     * 프레임당 합계의 평균으로 읽어도 된다.
+     */
+    private static final String COMBINED_GAME_TOTALS = """
+            SELECT g.id AS game_id, g.created_at AS created_at,
+                   SUM(CAST(ut.mean_interval_ns AS DECIMAL(30, 3))) AS total_ns
+            FROM statistic_update_time ut
+            JOIN statistic_games g ON g.id = ut.statistic_game_id
+            WHERE ut.name <> CAST(:frameName AS TEXT)
+            """ + FILTER + """
+            GROUP BY g.id, g.created_at
+            """;
+
+    private static final String FIND_COMBINED_TIMING = """
+            WITH game_totals AS (
+            """ + COMBINED_GAME_TOTALS + """
+            )
+            SELECT CAST(:combinedName AS TEXT) AS name,
+                   CAST(NULL AS BIGINT) AS min_ns,
+                   CAST(NULL AS BIGINT) AS max_ns,
+                   PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_ns) AS median_ns,
+                   PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY total_ns) AS p95_ns,
+                   COUNT(*) AS games,
+                   PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE
+                       WHEN created_at < CAST(:midpoint AS TIMESTAMP) THEN total_ns END) AS earlier_p95_ns,
+                   PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE
+                       WHEN created_at >= CAST(:midpoint AS TIMESTAMP) THEN total_ns END) AS later_p95_ns,
+                   COUNT(*) FILTER (WHERE created_at <  CAST(:midpoint AS TIMESTAMP)) AS earlier_games,
+                   COUNT(*) FILTER (WHERE created_at >= CAST(:midpoint AS TIMESTAMP)) AS later_games
+            FROM game_totals
+            """;
+
     private static final RowMapper<SystemTimingDto> SYSTEM_TIMING_MAPPER = (rs, rowNum) -> new SystemTimingDto(
             rs.getString("name"),
-            rs.getLong("min_ns"),
-            rs.getLong("max_ns"),
+            nullableLong(rs, "min_ns"),
+            nullableLong(rs, "max_ns"),
             rs.getDouble("median_ns"),
             rs.getDouble("p95_ns"),
             rs.getLong("games"),
@@ -159,6 +195,43 @@ public class StatisticUpdateTimeRepository {
         Map<String, Object> params = filterParams(gameType, fromDate);
         params.put("midpoint", midpoint);
         return template(dataSource).query(FIND_SYSTEM_TIMINGS, params, SYSTEM_TIMING_MAPPER);
+    }
+
+    /**
+     * {@code Frame}을 뺀 모든 이름을 합친 한 행. 이름별 값과 같은 형태로 돌려주므로 화면에서는 행
+     * 하나가 더 있는 것과 다르지 않다.
+     * <p>
+     * 표본이 없으면 빈 값이다. 집계 함수는 빈 입력에도 행 하나를 만들지만 그 행의 백분위수는 NULL이라
+     * 0ms짜리 행으로 보이게 된다.
+     */
+    public Optional<SystemTimingDto> findCombinedSystemTiming(StatisticDataSource dataSource, GameType gameType,
+                                                              LocalDateTime fromDate, LocalDateTime midpoint) {
+        Map<String, Object> params = filterParams(gameType, fromDate);
+        params.put("midpoint", midpoint);
+        params.put("frameName", FRAME_STATISTIC_NAME);
+        params.put("combinedName", SystemTimingDto.COMBINED_SYSTEMS_NAME);
+        return template(dataSource).query(FIND_COMBINED_TIMING, params, SYSTEM_TIMING_MAPPER).stream()
+                .filter(timing -> timing.gameCount() > 0)
+                .findFirst();
+    }
+
+    /** 합계의 추이. 이름 하나를 고르는 {@link #findTimeSeries}와 구간 단위 규칙은 같다. */
+    public List<TimeSeriesPointDto> findCombinedTimeSeries(StatisticDataSource dataSource, GameType gameType,
+                                                           LocalDateTime fromDate, String bucket) {
+        Map<String, Object> params = filterParams(gameType, fromDate);
+        params.put("bucket", bucket);
+        params.put("frameName", FRAME_STATISTIC_NAME);
+        return template(dataSource).query("""
+                WITH game_totals AS (
+                """ + COMBINED_GAME_TOTALS + """
+                )
+                SELECT date_trunc(CAST(:bucket AS TEXT), created_at) AS bucket_start,
+                       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY total_ns) AS median_ns,
+                       COUNT(*) AS games
+                FROM game_totals
+                GROUP BY bucket_start
+                ORDER BY bucket_start ASC
+                """, params, TIME_SERIES_MAPPER);
     }
 
     /**

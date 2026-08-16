@@ -58,8 +58,13 @@ class StatisticPerformanceRenderTest {
             new SystemTimingDto("PhysicSystem", 400_000L, 5_100_000L, 1_200_000.0, 2_400_000.0, 42,
                     null, null, 0, 0);
 
+    /** 여러 이름을 합친 행이므로 단일 프레임 값인 min/max가 없다. */
+    private final SystemTimingDto combined =
+            new SystemTimingDto(SystemTimingDto.COMBINED_SYSTEMS_NAME, null, null,
+                    3_100_000.0, 4_800_000.0, 42, 4_000_000.0, 6_000_000.0, 20, 22);
+
     private void stubPopulated() {
-        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame, physics));
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame, combined, physics));
         when(service.selectName(any(), any())).thenReturn("Frame");
         when(service.frameTiming(any())).thenReturn(frame);
         when(service.findTimeSeries(any(), any(), any(), any(), anyInt())).thenReturn(List.of(
@@ -107,6 +112,11 @@ class StatisticPerformanceRenderTest {
         assertThat(html).contains("전반부 p95 50.000ms (20게임) → 후반부 p95 70.000ms (22게임)");
         // PhysicSystem은 전·후반 표본이 없으므로 방향을 지어내지 않는다.
         assertThat(html).contains("표본 부족");
+        // 합계도 한 행으로 나오고, 추세와 차트 데이터를 이름별 행과 똑같이 갖는다.
+        assertThat(html).contains(SystemTimingDto.COMBINED_SYSTEMS_NAME);
+        assertThat(html).contains("\"median\":3.1", "\"p95\":4.8");
+        // Min/Max 자리는 비어 있어야 한다. 합이 실제로 관측된 프레임이 아니기 때문이다.
+        assertThat(html).contains("<span class=\"text-muted\">–</span>");
         // 렌더되지 않은 Thymeleaf 표현식이 출력에 남지 않았는지.
         assertThat(html).doesNotContain("${", "th:text");
     }

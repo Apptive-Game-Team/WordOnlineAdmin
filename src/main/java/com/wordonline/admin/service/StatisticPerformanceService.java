@@ -1,8 +1,10 @@
 package com.wordonline.admin.service;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import com.wordonline.admin.dto.statistic.GameFrameSummaryDto;
 import com.wordonline.admin.dto.statistic.GameTimingDetailDto;
@@ -32,9 +34,28 @@ public class StatisticPerformanceService {
 
     private final StatisticUpdateTimeRepository repository;
 
+    /**
+     * 이름별 집계에 {@code Frame}을 뺀 합계 한 행을 더해 느린 순으로 돌려준다.
+     * <p>
+     * 합계가 따로 필요한 이유는 {@code Frame}이 대답하지 못하는 질문이 있어서다. 루프는 남는 예산을
+     * 자므로 프레임 간격은 50ms에 붙박여 있고 예산을 넘기기 전까지는 작업량이 늘어도 움직이지 않는다.
+     * 시스템 시간의 합은 그 작업량 자체라 예산까지 얼마나 남았는지를 바로 보여준다.
+     */
     public List<SystemTimingDto> findSystemTimings(StatisticDataSource dataSource, GameType gameType,
                                                    LocalDateTime fromDate, LocalDateTime now) {
-        return repository.findSystemTimings(dataSource, gameType, fromDate, midpoint(fromDate, now));
+        LocalDateTime midpoint = midpoint(fromDate, now);
+        List<SystemTimingDto> timings = repository.findSystemTimings(dataSource, gameType, fromDate, midpoint);
+        return repository.findCombinedSystemTiming(dataSource, gameType, fromDate, midpoint)
+                .map(combined -> sortedBySlowest(timings, combined))
+                .orElse(timings);
+    }
+
+    /** 리포지토리가 이름별로 이미 쓰는 순서와 같다. 합계를 끼워 넣어도 표의 순서 규칙은 하나로 남는다. */
+    private List<SystemTimingDto> sortedBySlowest(List<SystemTimingDto> timings, SystemTimingDto combined) {
+        return Stream.concat(timings.stream(), Stream.of(combined))
+                .sorted(Comparator.comparingDouble(SystemTimingDto::p95MeanIntervalNs).reversed()
+                        .thenComparing(SystemTimingDto::name))
+                .toList();
     }
 
     /** 보조 데이터베이스가 설정되어 있을 때만 화면에 토글을 노출한다. */
@@ -52,9 +73,14 @@ public class StatisticPerformanceService {
         return fromDate.plus(java.time.Duration.between(fromDate, now).dividedBy(2));
     }
 
+    /** 합계는 저장된 이름이 아니라 계산해서 만드는 행이므로 조회 경로가 다르다. */
     public List<TimeSeriesPointDto> findTimeSeries(StatisticDataSource dataSource, String name, GameType gameType,
                                                   LocalDateTime fromDate, int days) {
-        return repository.findTimeSeries(dataSource, name, gameType, fromDate, bucketUnit(days));
+        String bucket = bucketUnit(days);
+        if (SystemTimingDto.COMBINED_SYSTEMS_NAME.equals(name)) {
+            return repository.findCombinedTimeSeries(dataSource, gameType, fromDate, bucket);
+        }
+        return repository.findTimeSeries(dataSource, name, gameType, fromDate, bucket);
     }
 
     /**
@@ -140,18 +166,27 @@ public class StatisticPerformanceService {
 
     /**
      * 시계열로 그릴 이름을 고른다. 이 페이지가 존재하는 이유가 프레임 간격이므로 {@code Frame}을
-     * 기본값으로 쓰고, 그 이름이 없으면 가장 느린 항목으로 넘어간다.
+     * 기본값으로 쓴다.
+     * <p>
+     * {@code Frame} 행이 없으면 합계로 넘어간다. 게임 서버가 프레임 간격을 기록하기 전에 끝난 게임만
+     * 조회 범위에 들어오면 이름별 목록에서 가장 느린 시스템 하나가 뽑히는데, 그 시스템은 전체 부하를
+     * 대표하지 못하면서도 마치 기본 지표인 것처럼 보인다.
      */
     public String selectName(String requested, List<SystemTimingDto> timings) {
         if (requested != null && !requested.isBlank()) {
             return requested;
         }
-        boolean hasFrame = timings.stream()
-                .anyMatch(timing -> StatisticUpdateTimeRepository.FRAME_STATISTIC_NAME.equals(timing.name()));
-        if (hasFrame) {
-            return StatisticUpdateTimeRepository.FRAME_STATISTIC_NAME;
-        }
-        return timings.isEmpty() ? null : timings.getFirst().name();
+        return firstPresent(timings, StatisticUpdateTimeRepository.FRAME_STATISTIC_NAME)
+                .or(() -> firstPresent(timings, SystemTimingDto.COMBINED_SYSTEMS_NAME))
+                .or(() -> timings.stream().map(SystemTimingDto::name).findFirst())
+                .orElse(null);
+    }
+
+    private Optional<String> firstPresent(List<SystemTimingDto> timings, String name) {
+        return timings.stream()
+                .map(SystemTimingDto::name)
+                .filter(name::equals)
+                .findFirst();
     }
 
     public SystemTimingDto frameTiming(List<SystemTimingDto> timings) {
