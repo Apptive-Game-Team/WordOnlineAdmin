@@ -8,7 +8,10 @@ import com.wordonline.admin.entity.server.ServerState;
 import com.wordonline.admin.entity.server.ServerType;
 import com.wordonline.admin.repository.server.ServerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -49,6 +52,33 @@ public class ServerService {
                 sessionCounts(ServerDatabase.PRIMARY, getPrimaryServers()),
                 sessionCounts(ServerDatabase.SECONDARY, getSecondaryServers())
         ).toList();
+    }
+
+    /**
+     * Sets or clears ({@code null}) the bot scheduler target override of one game server.
+     * The game server picks the new value up on its next scheduler tick; no restart needed.
+     */
+    public void updateTargetBotSessions(ServerDatabase database, long serverId, Integer targetBotSessions) {
+        int updated = switch (database) {
+            case PRIMARY -> serverRepository.updateTargetBotSessions(serverId, targetBotSessions);
+            case SECONDARY -> updateSecondaryTargetBotSessions(serverId, targetBotSessions);
+        };
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No game server with id " + serverId + " in the " + database + " database");
+        }
+    }
+
+    private int updateSecondaryTargetBotSessions(long serverId, Integer targetBotSessions) {
+        SecondaryServerService secondary = secondaryServerService.orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Secondary database is not configured"));
+        try {
+            return secondary.updateTargetBotSessions(serverId, targetBotSessions);
+        } catch (DataAccessException e) {
+            // Most likely the secondary database predates the target_bot_sessions column (V051).
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Secondary database rejected the update. Check the admin server log.", e);
+        }
     }
 
     /**
