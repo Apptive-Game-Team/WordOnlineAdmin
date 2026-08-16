@@ -13,13 +13,16 @@ package com.wordonline.admin.dto.statistic;
  * 무관하게 예산 50ms에 붙박여 있고, 예산을 넘긴 프레임만 그 위로 튄다. 즉 median 기준 추세는 이
  * 화면이 잡아야 할 바로 그 회귀에 눈이 먼다.
  *
+ * @param minIntervalNs 관측된 가장 짧은 단일 프레임 값. 여러 이름을 합친 행처럼 단일 프레임 값이
+ *                      존재하지 않으면 null
+ * @param maxIntervalNs 관측된 가장 긴 단일 프레임 값. 없으면 null
  * @param earlierP95Ns 구간 전반부의 p95. 표본이 없으면 null
  * @param laterP95Ns   구간 후반부의 p95. 표본이 없으면 null
  */
 public record SystemTimingDto(
         String name,
-        long minIntervalNs,
-        long maxIntervalNs,
+        Long minIntervalNs,
+        Long maxIntervalNs,
         double medianMeanIntervalNs,
         double p95MeanIntervalNs,
         long gameCount,
@@ -29,11 +32,28 @@ public record SystemTimingDto(
         long laterGames
 ) {
 
+    /**
+     * {@code Frame}을 뺀 모든 이름을 합친 행의 이름.
+     * <p>
+     * 저장된 이름이 아니라 조회할 때 만들어지는 행이다. 게임 서버가 기록하는 이름은 {@code GameSystem}
+     * 구현 클래스의 단순 이름이라 공백과 괄호가 든 이 라벨과 겹칠 수 없다. 겹치면 시계열 조회가 합계
+     * 쪽으로 잘못 분기한다.
+     */
+    public static final String COMBINED_SYSTEMS_NAME = "All systems (Frame 제외)";
+
     /** 양쪽 절반에 이만큼은 있어야 추세를 말한다. 게임 두세 건의 차이는 추세가 아니라 잡음이다. */
     public static final long MIN_GAMES_PER_HALF = 5;
 
     /** 이 미만의 변화는 방향을 말하지 않는다. 타이밍 값은 원래 이 정도로는 흔들린다. */
     public static final double FLAT_THRESHOLD_PERCENT = 10.0;
+
+    /**
+     * min/max는 이름 하나의 단일 프레임 값이다. 여러 이름을 합친 행에서는 그것들을 더해도 실제로
+     * 관측된 프레임이 아니므로 값을 만들지 않는다.
+     */
+    public boolean hasIntervalBounds() {
+        return minIntervalNs != null && maxIntervalNs != null;
+    }
 
     public double minIntervalMs() {
         return minIntervalNs / 1_000_000.0;

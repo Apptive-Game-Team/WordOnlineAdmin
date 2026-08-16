@@ -58,13 +58,25 @@ class StatisticPerformanceRenderTest {
             new SystemTimingDto("PhysicSystem", 400_000L, 5_100_000L, 1_200_000.0, 2_400_000.0, 42,
                     null, null, 0, 0);
 
+    /** 여러 이름을 합친 행이므로 단일 프레임 값인 min/max가 없다. */
+    private final SystemTimingDto combined =
+            new SystemTimingDto(SystemTimingDto.COMBINED_SYSTEMS_NAME, null, null,
+                    3_100_000.0, 4_800_000.0, 42, 4_000_000.0, 6_000_000.0, 20, 22);
+
     private void stubPopulated() {
-        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame, physics));
+        when(service.findSystemTimings(any(), any(), any(), any())).thenReturn(List.of(frame, combined, physics));
         when(service.selectName(any(), any())).thenReturn("Frame");
+        when(service.companionName(any(), any())).thenReturn(SystemTimingDto.COMBINED_SYSTEMS_NAME);
         when(service.frameTiming(any())).thenReturn(frame);
-        when(service.findTimeSeries(any(), any(), any(), any(), anyInt())).thenReturn(List.of(
+        when(service.findTimeSeries(any(), eq("Frame"), any(), any(), anyInt())).thenReturn(List.of(
                 new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 1, 10, 0), 47_000_000.0, 12L),
                 new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 62_900_000.0, 9L)));
+        // 짝 시계열은 구간이 하나 더 많다. 두 선의 x축이 다를 수 있다는 뜻이다.
+        when(service.findTimeSeries(any(), eq(SystemTimingDto.COMBINED_SYSTEMS_NAME), any(), any(), anyInt()))
+                .thenReturn(List.of(
+                        new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 1, 10, 0), 3_100_000.0, 12L),
+                        new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 2, 10, 0), 4_800_000.0, 9L),
+                        new TimeSeriesPointDto(LocalDateTime.of(2026, 8, 3, 10, 0), 5_200_000.0, 4L)));
         when(service.findRecentGames(any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of(
                 new GameFrameSummaryDto(2L, LocalDateTime.of(2026, 8, 2, 10, 0), "PVP", 302L,
                         62_900_000.0, 96_000_000L),
@@ -107,6 +119,15 @@ class StatisticPerformanceRenderTest {
         assertThat(html).contains("전반부 p95 50.000ms (20게임) → 후반부 p95 70.000ms (22게임)");
         // PhysicSystem은 전·후반 표본이 없으므로 방향을 지어내지 않는다.
         assertThat(html).contains("표본 부족");
+        // 합계도 한 행으로 나오고, 추세와 차트 데이터를 이름별 행과 똑같이 갖는다.
+        assertThat(html).contains(SystemTimingDto.COMBINED_SYSTEMS_NAME);
+        assertThat(html).contains("\"median\":3.1", "\"p95\":4.8");
+        // Min/Max 자리는 비어 있어야 한다. 합이 실제로 관측된 프레임이 아니기 때문이다.
+        assertThat(html).contains("<span class=\"text-muted\">–</span>");
+        // 시계열 차트는 선택된 이름과 그 짝을 같은 plot에 그린다.
+        assertThat(html).contains("id=\"companionSeriesData\"");
+        assertThat(html).contains("data-primary-name=\"Frame\"");
+        assertThat(html).contains("\"median\":3.1", "\"median\":5.2");
         // 렌더되지 않은 Thymeleaf 표현식이 출력에 남지 않았는지.
         assertThat(html).doesNotContain("${", "th:text");
     }

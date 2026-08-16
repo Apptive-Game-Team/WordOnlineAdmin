@@ -65,6 +65,10 @@ public class StatisticPerformanceController {
         List<TimeSeriesPointDto> series = selectedName == null
                 ? List.of()
                 : statisticPerformanceService.findTimeSeries(dataSource, selectedName, type, fromDate, daysFilter);
+        String companionName = statisticPerformanceService.companionName(selectedName, timings);
+        List<TimeSeriesPointDto> companionSeries = companionName == null
+                ? List.of()
+                : statisticPerformanceService.findTimeSeries(dataSource, companionName, type, fromDate, daysFilter);
         List<GameFrameSummaryDto> games = statisticPerformanceService.findRecentGames(
                 dataSource, type, fromDate, pageIndex, StatisticPerformanceService.DEFAULT_PAGE_SIZE);
         long totalCount = statisticPerformanceService.countRecentGames(dataSource, type, fromDate);
@@ -74,6 +78,7 @@ public class StatisticPerformanceController {
         model.addAttribute("selectedDays", daysFilter);
         model.addAttribute("timings", timings);
         model.addAttribute("selectedName", selectedName);
+        model.addAttribute("combinedName", SystemTimingDto.COMBINED_SYSTEMS_NAME);
         model.addAttribute("frameTiming", statisticPerformanceService.frameTiming(timings));
         model.addAttribute("frameBudgetMs", StatisticPerformanceService.FRAME_BUDGET_NS / 1_000_000.0);
         model.addAttribute("games", games);
@@ -92,6 +97,8 @@ public class StatisticPerformanceController {
                         .toList()));
         model.addAttribute("timingsJson", toJson(timings.stream().map(ChartPoint::of).toList()));
         model.addAttribute("seriesJson", toJson(series.stream().map(SeriesPoint::of).toList()));
+        model.addAttribute("companionName", companionName);
+        model.addAttribute("companionSeriesJson", toJson(companionSeries.stream().map(SeriesPoint::of).toList()));
         return "admin-statistics-performance";
     }
 

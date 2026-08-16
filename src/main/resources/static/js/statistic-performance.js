@@ -98,20 +98,58 @@
     }
 
     var series = readJson('seriesData');
+    var companionSeries = readJson('companionSeriesData');
     var seriesCanvas = document.getElementById('seriesChart');
     if (seriesCanvas && series.length) {
+        // 두 선의 구간이 항상 같지는 않다. 한쪽에만 게임이 있는 구간은 축에 남기고 값만 비워야
+        // 선이 옆 구간으로 이어 붙어 없는 데이터를 있는 것처럼 그리지 않는다.
+        var labels = [];
+        var seen = {};
+        [series, companionSeries].forEach(function (points) {
+            points.forEach(function (p) {
+                if (!seen[p.at]) {
+                    seen[p.at] = true;
+                    labels.push(p.at);
+                }
+            });
+        });
+        labels.sort();
+
+        function byBucket(points) {
+            var map = {};
+            points.forEach(function (p) { map[p.at] = p; });
+            return map;
+        }
+
+        function dataset(name, points, borderColor, fillColor) {
+            var map = byBucket(points);
+            return {
+                label: (name || 'median') + ' (ms)',
+                data: labels.map(function (at) {
+                    return map[at] ? map[at].median : null;
+                }),
+                borderColor: borderColor,
+                backgroundColor: fillColor,
+                pointRadius: 2,
+                tension: 0.1,
+                spanGaps: false,
+                // 게임 수는 툴팁에서 쓴다. 구간이 비어 있으면 값도 없다.
+                buckets: map
+            };
+        }
+
+        var datasets = [dataset(seriesCanvas.dataset.primaryName, series,
+                'rgba(13, 110, 253, 1)', 'rgba(13, 110, 253, 0.2)')];
+        if (companionSeries.length) {
+            datasets.push(dataset(seriesCanvas.dataset.companionName, companionSeries,
+                    'rgba(253, 126, 20, 1)', 'rgba(253, 126, 20, 0.2)'));
+        }
+
         new Chart(seriesCanvas, {
             type: 'line',
             data: {
-                labels: series.map(function (p) { return p.at; }),
-                datasets: [{
-                    label: 'median (ms)',
-                    data: series.map(function (p) { return p.median; }),
-                    borderColor: 'rgba(13, 110, 253, 1)',
-                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
-                    pointRadius: 2,
-                    tension: 0.1
-                }]
+                labels: labels,
+                datasets: datasets
             },
             options: {
                 responsive: true,
@@ -121,7 +159,8 @@
                         callbacks: {
                             // 그 구간에 게임이 몇 건이었는지가 값의 신뢰도를 좌우한다.
                             afterLabel: function (item) {
-                                var point = series[item.dataIndex];
+                                var buckets = item.dataset.buckets || {};
+                                var point = buckets[item.label];
                                 return point ? point.games + ' games' : '';
                             }
                         }
