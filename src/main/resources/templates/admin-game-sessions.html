@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <title>Admin - Game Sessions</title>
+</head>
+
+<body>
+
+<div layout:fragment="content">
+    <div class="container">
+        <h1>Game Sessions</h1>
+        <p class="text-muted">
+            Every session from the moment it starts, including games that never finished.
+            <strong>ABANDONED</strong> means the game server's watchdog force-ended a stuck loop
+            (or the server restarted mid-game); an old <strong>IN_PROGRESS</strong> row means the
+            hosting process died without cleaning up.
+        </p>
+
+        <!-- Status and Date Filter -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-7">
+                        <h5>Filter by Status</h5>
+                        <div class="btn-group" role="group">
+                            <a th:href="@{/admin/game-sessions(days=${selectedDays})}"
+                               th:classappend="${selectedStatus == 'ALL'} ? 'active' : ''"
+                               class="btn btn-outline-primary">All</a>
+                            <a th:each="statusValue : ${statusValues}"
+                               th:href="@{/admin/game-sessions(status=${statusValue.name()}, days=${selectedDays})}"
+                               th:classappend="${selectedStatus == statusValue.name()} ? 'active' : ''"
+                               class="btn btn-outline-primary"
+                               th:text="${statusValue.name()}">STATUS</a>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5">
+                        <h5>Filter by Date Range</h5>
+                        <div class="btn-group" role="group">
+                            <a th:href="@{/admin/game-sessions(status=${statusForUrl}, days=1)}"
+                               th:classappend="${selectedDays == 1} ? 'active' : ''"
+                               class="btn btn-outline-secondary">1 Day</a>
+                            <a th:href="@{/admin/game-sessions(status=${statusForUrl}, days=7)}"
+                               th:classappend="${selectedDays == 7} ? 'active' : ''"
+                               class="btn btn-outline-secondary">7 Days</a>
+                            <a th:href="@{/admin/game-sessions(status=${statusForUrl}, days=30)}"
+                               th:classappend="${selectedDays == 30} ? 'active' : ''"
+                               class="btn btn-outline-secondary">30 Days</a>
+                            <a th:href="@{/admin/game-sessions(status=${statusForUrl}, days=90)}"
+                               th:classappend="${selectedDays == 90} ? 'active' : ''"
+                               class="btn btn-outline-secondary">90 Days</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Summary (<span th:text="${selectedDays}">7</span> days)</h2>
+            </div>
+            <div class="card-body">
+                <span class="badge badge-primary bg-primary mr-2 me-2">
+                    IN_PROGRESS: <span th:text="${statusCounts['IN_PROGRESS']}">0</span>
+                </span>
+                <span class="badge badge-success bg-success mr-2 me-2">
+                    COMPLETED: <span th:text="${statusCounts['COMPLETED']}">0</span>
+                </span>
+                <span class="badge badge-secondary bg-secondary mr-2 me-2">
+                    DRAW: <span th:text="${statusCounts['DRAW']}">0</span>
+                </span>
+                <span class="badge badge-danger bg-danger mr-2 me-2">
+                    ABANDONED: <span th:text="${statusCounts['ABANDONED']}">0</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Session List -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2>Sessions</h2>
+            </div>
+            <div class="card-body">
+                <p th:if="${#lists.isEmpty(sessions)}" class="text-muted">No sessions in this range.</p>
+                <table class="table table-striped mt-3" th:unless="${#lists.isEmpty(sessions)}">
+                    <thead>
+                    <tr>
+                        <th>Started</th>
+                        <th>Session</th>
+                        <th>Players</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>End Reason</th>
+                        <th>Server</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="session : ${sessions}"
+                        th:classappend="${session.suspectedLost} ? 'table-danger' : ''">
+                        <td th:text="${session.startedAt}"></td>
+                        <td>
+                            <code th:text="${session.sessionId}"></code>
+                        </td>
+                        <td>
+                            <span th:text="${session.leftUserId}"></span> vs
+                            <span th:text="${session.rightUserId}"></span>
+                        </td>
+                        <td th:text="${session.gameType}"></td>
+                        <td>
+                            <span th:text="${session.status}" th:class="${session.statusBadgeClass}"></span>
+                            <span th:if="${session.suspectedLost}" class="badge badge-warning bg-warning">SUSPECTED LOST</span>
+                        </td>
+                        <td th:text="${session.durationSeconds} + 's'"></td>
+                        <td>
+                            <span th:text="${session.endReason} ?: '-'"></span>
+                            <details th:if="${session.endDetail != null}">
+                                <summary>detail</summary>
+                                <pre style="white-space: pre-wrap; font-size: 0.75rem;" th:text="${session.endDetail}"></pre>
+                            </details>
+                        </td>
+                        <td>
+                            <span th:text="${session.server}"></span>
+                            <small class="text-muted" th:text="'v' + ${session.serverVersion}"></small>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
