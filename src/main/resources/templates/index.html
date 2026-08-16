@@ -87,6 +87,22 @@
                                     </span>
                                 </div>
 
+                                <!-- Bot scheduler target (game servers only). Empty input = server default. -->
+                                <div class="mb-3 d-flex justify-content-center" th:if="${server.type.name() == 'GAME'}">
+                                    <div class="input-group input-group-sm target-bot-control" style="max-width: 230px"
+                                         th:attr="data-server-id=${server.id},data-server-database='PRIMARY'">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">🤖 Target bots</span>
+                                        </div>
+                                        <input type="number" min="0" step="1" placeholder="default"
+                                               class="form-control target-bot-input"
+                                               th:value="${server.targetBotSessions}">
+                                        <div class="input-group-append">
+                                            <button type="button" class="btn btn-outline-primary target-bot-save">Save</button>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Server Details -->
                                 <div class="text-start small">
                                     <div class="mb-2">
@@ -143,6 +159,21 @@
                                               th:attr="data-server-id=${server.id},data-server-database='SECONDARY'">
                                             🎯 Sessions: <span class="session-count">…</span>
                                         </span>
+                                    </div>
+                                    <!-- Bot scheduler target. Empty input = server default. -->
+                                    <div class="mb-3 d-flex justify-content-center" th:if="${server.type.name() == 'GAME'}">
+                                        <div class="input-group input-group-sm target-bot-control" style="max-width: 230px"
+                                             th:attr="data-server-id=${server.id},data-server-database='SECONDARY'">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text">🤖 Target bots</span>
+                                            </div>
+                                            <input type="number" min="0" step="1" placeholder="default"
+                                                   class="form-control target-bot-input"
+                                                   th:value="${server.targetBotSessions}">
+                                            <div class="input-group-append">
+                                                <button type="button" class="btn btn-outline-primary target-bot-save">Save</button>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="text-start small">
                                         <div class="mb-2"><strong>ID:</strong> <span th:text="${server.id}">1</span></div>
@@ -240,6 +271,40 @@
                 if (document.querySelector('.session-badge')) {
                     refreshSessionCounts();
                     setInterval(refreshSessionCounts, SESSION_POLL_INTERVAL_MS);
+                }
+
+                document.querySelectorAll('.target-bot-control .target-bot-save').forEach(button => {
+                    button.addEventListener('click', () => saveTargetBotSessions(button));
+                });
+
+                async function saveTargetBotSessions(button) {
+                    const control = button.closest('.target-bot-control');
+                    const raw = control.querySelector('.target-bot-input').value.trim();
+                    if (raw !== '' && !/^\d+$/.test(raw)) {
+                        alert('Target bot sessions must be a non-negative whole number.');
+                        return;
+                    }
+                    button.disabled = true;
+                    try {
+                        const response = await fetch(`/api/admin/servers/${control.dataset.serverId}/target-bot-sessions`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                database: control.dataset.serverDatabase,
+                                targetBotSessions: raw === '' ? null : Number(raw)
+                            })
+                        });
+                        if (!response.ok) {
+                            const message = await response.text();
+                            throw new Error(message || `HTTP ${response.status}`);
+                        }
+                        button.textContent = '✓';
+                        setTimeout(() => { button.textContent = 'Save'; }, 1500);
+                    } catch (error) {
+                        alert(`Failed to save the target: ${error.message}`);
+                    } finally {
+                        button.disabled = false;
+                    }
                 }
             </script>
 

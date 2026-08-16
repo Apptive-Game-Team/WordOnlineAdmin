@@ -13,6 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -130,6 +134,55 @@ class ServerServiceTest {
         when(gameServerClient.invalidateCache(unreachable.getUrl())).thenReturn(false);
 
         assertEquals(1, serverService.invalidateGameServerCaches());
+    }
+
+    @Test
+    void updateTargetBotSessionsWritesThePrimaryRowThroughTheTargetedQuery() {
+        when(serverRepository.updateTargetBotSessions(1L, 4)).thenReturn(1);
+
+        serverService.updateTargetBotSessions(ServerDatabase.PRIMARY, 1L, 4);
+
+        verify(serverRepository).updateTargetBotSessions(1L, 4);
+    }
+
+    @Test
+    void updateTargetBotSessionsRejectsAnIdThatIsNotAGameServer() {
+        when(serverRepository.updateTargetBotSessions(9L, 2)).thenReturn(0);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> serverService.updateTargetBotSessions(ServerDatabase.PRIMARY, 9L, 2));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    void updateTargetBotSessionsDelegatesSecondaryWritesToTheSecondaryService() {
+        serverService = new ServerService(serverRepository, gameServerClient, Optional.of(secondaryServerService), CLOCK);
+        when(secondaryServerService.updateTargetBotSessions(1L, null)).thenReturn(1);
+
+        serverService.updateTargetBotSessions(ServerDatabase.SECONDARY, 1L, null);
+
+        verify(secondaryServerService).updateTargetBotSessions(1L, null);
+    }
+
+    @Test
+    void updateTargetBotSessionsFailsClearlyWithoutASecondaryDatabase() {
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> serverService.updateTargetBotSessions(ServerDatabase.SECONDARY, 1L, 1));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+    }
+
+    @Test
+    void updateTargetBotSessionsSurfacesASecondarySchemaThatPredatesTheColumn() {
+        serverService = new ServerService(serverRepository, gameServerClient, Optional.of(secondaryServerService), CLOCK);
+        when(secondaryServerService.updateTargetBotSessions(1L, 1))
+                .thenThrow(new DataIntegrityViolationException("no target_bot_sessions column"));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> serverService.updateTargetBotSessions(ServerDatabase.SECONDARY, 1L, 1));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
     }
 
     private Server heartbeatingGame(Long id, String domain, ServerState state, int sessionCount, Instant lastHeartbeatAt) {

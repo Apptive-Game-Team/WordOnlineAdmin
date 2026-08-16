@@ -14,6 +14,10 @@ import java.time.Instant;
  *
  * <p>{@code sessionCount} and {@code lastHeartbeatAt} are written by the game server on every
  * heartbeat. A database that predates those columns reports both as {@code null}.
+ *
+ * <p>{@code targetBotSessions} is the admin's override for the game server's bot scheduler
+ * target. {@code null} means no override (the game server uses its configured default), or a
+ * database that predates the column.
  */
 public record ServerDto(
         Long id,
@@ -23,8 +27,15 @@ public record ServerDto(
         ServerType type,
         ServerState state,
         Integer sessionCount,
-        Instant lastHeartbeatAt
+        Instant lastHeartbeatAt,
+        Integer targetBotSessions
 ) {
+
+    /** A row from a database that predates the target-bot-sessions column. */
+    public ServerDto(Long id, String protocol, String domain, Integer port, ServerType type, ServerState state,
+                     Integer sessionCount, Instant lastHeartbeatAt) {
+        this(id, protocol, domain, port, type, state, sessionCount, lastHeartbeatAt, null);
+    }
 
     /** A row from a database that predates the heartbeat columns. */
     public ServerDto(Long id, String protocol, String domain, Integer port, ServerType type, ServerState state) {
@@ -40,7 +51,8 @@ public record ServerDto(
                 server.getType(),
                 server.getState(),
                 server.getSessionCount(),
-                server.getLastHeartbeatAt()
+                server.getLastHeartbeatAt(),
+                server.getTargetBotSessions()
         );
     }
 
