@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.wordonline.admin.entity.magic.Card;
 import com.wordonline.admin.entity.magic.Magic;
+import com.wordonline.admin.entity.statistic.GameOutcome;
 import com.wordonline.admin.entity.statistic.GameType;
 import com.wordonline.admin.entity.statistic.StatisticGame;
 import com.wordonline.admin.entity.statistic.StatisticGameCard;
@@ -327,14 +328,20 @@ public class StatisticService {
     }
 
     private List<StatisticGame> getStatisticGames(GameType gameType, LocalDateTime fromDate) {
+        List<StatisticGame> statisticGames;
         if (gameType == null && fromDate == null) {
-            return statisticGameRepository.findAll();
+            statisticGames = statisticGameRepository.findAll();
         } else if (gameType == null) {
-            return statisticGameRepository.findByCreatedAtAfter(fromDate);
+            statisticGames = statisticGameRepository.findByCreatedAtAfter(fromDate);
         } else if (fromDate == null) {
-            return statisticGameRepository.findByGameType(gameType);
+            statisticGames = statisticGameRepository.findByGameType(gameType);
         } else {
-            return statisticGameRepository.findByGameTypeAndCreatedAtAfter(gameType, fromDate);
+            statisticGames = statisticGameRepository.findByGameTypeAndCreatedAtAfter(gameType, fromDate);
         }
+        // Abandoned games are partial recordings cut off by the watchdog; including them
+        // would skew play counts and win rates. They are visible on the Game Sessions page.
+        return statisticGames.stream()
+                .filter(statisticGame -> statisticGame.getOutcome() != GameOutcome.ABANDONED)
+                .toList();
     }
 }
