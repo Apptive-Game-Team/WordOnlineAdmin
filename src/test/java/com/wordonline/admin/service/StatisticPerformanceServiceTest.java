@@ -88,6 +88,31 @@ class StatisticPerformanceServiceTest {
         verify(repository, never()).findTimeSeries(any(), any(), any(), any(), any());
     }
 
+    /**
+     * 두 값은 따로 보면 반쪽이다. {@code Frame}은 예산을 넘겼는지만, 합계는 남은 여유만 말한다.
+     */
+    @Test
+    void pairsFrameWithTheCombinedRowOnTheSameChart() {
+        List<SystemTimingDto> timings = List.of(
+                timing("Frame", 5e7),
+                timing(SystemTimingDto.COMBINED_SYSTEMS_NAME, 4e6),
+                timing("PhysicSystem", 2e6));
+
+        assertEquals(SystemTimingDto.COMBINED_SYSTEMS_NAME, service().companionName("Frame", timings));
+        assertEquals("Frame", service().companionName(SystemTimingDto.COMBINED_SYSTEMS_NAME, timings));
+        // 시스템 하나를 골라 봐도 비교 대상은 전체 부하다.
+        assertEquals(SystemTimingDto.COMBINED_SYSTEMS_NAME, service().companionName("PhysicSystem", timings));
+    }
+
+    @Test
+    void hasNoCompanionWhenTheCounterpartRowIsMissing() {
+        List<SystemTimingDto> onlySystems = List.of(timing("PhysicSystem", 2e6));
+
+        assertNull(service().companionName("PhysicSystem", onlySystems));
+        assertNull(service().companionName(null, onlySystems));
+        assertNull(service().companionName("Frame", List.of(timing("Frame", 5e7))));
+    }
+
     @Test
     void putsTheCombinedRowIntoTheTimingsInSlowestFirstOrder() {
         LocalDateTime now = from.plusDays(2);

@@ -182,6 +182,23 @@ public class StatisticPerformanceService {
                 .orElse(null);
     }
 
+    /**
+     * 선택된 이름과 같은 차트에 겹쳐 그릴 두 번째 이름. 없으면 null.
+     * <p>
+     * 두 값은 따로 보면 반쪽짜리다. {@code Frame}은 예산을 넘겼는지만 말하고 합계는 예산까지 얼마나
+     * 남았는지만 말한다. 같은 축에 겹쳐 놓아야 "작업량이 이만큼 늘어서 프레임이 밀리기 시작했다"가
+     * 한 화면에서 읽힌다. 그래서 짝은 항상 반대쪽이다.
+     */
+    public String companionName(String selectedName, List<SystemTimingDto> timings) {
+        if (selectedName == null) {
+            return null;
+        }
+        String counterpart = SystemTimingDto.COMBINED_SYSTEMS_NAME.equals(selectedName)
+                ? StatisticUpdateTimeRepository.FRAME_STATISTIC_NAME
+                : SystemTimingDto.COMBINED_SYSTEMS_NAME;
+        return firstPresent(timings, counterpart).orElse(null);
+    }
+
     private Optional<String> firstPresent(List<SystemTimingDto> timings, String name) {
         return timings.stream()
                 .map(SystemTimingDto::name)

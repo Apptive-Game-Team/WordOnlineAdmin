@@ -229,13 +229,23 @@
         <!-- Time series -->
         <div class="card mt-4" th:if="${selectedName != null}">
             <div class="card-body">
-                <h5><span th:text="${selectedName}">name</span> over time</h5>
+                <h5>
+                    <span th:text="${selectedName}">name</span>
+                    <span th:if="${companionName != null}" th:text="' vs ' + ${companionName}"> vs 합계</span>
+                    over time
+                </h5>
                 <p class="text-muted small">
                     <span th:text="${bucketLabel}">일</span> 단위로 묶어 각 구간에 속한 게임별 평균의
                     중앙값을 그린다. 게임 하나하나의 값은 아래 최근 게임 표에서 볼 수 있다.
                 </p>
+                <p class="text-muted small" th:if="${companionName != null}">
+                    두 선을 같은 축에 겹쳐 그린다. <code>Frame</code>은 예산을 넘겼는지만 말하고 합계는
+                    예산까지 남은 여유만 말하므로, 따로 보면 "작업량이 늘어서 프레임이 밀리기 시작했다"를
+                    읽을 수 없다.
+                </p>
                 <div style="position: relative; height: 320px;">
-                    <canvas id="seriesChart"></canvas>
+                    <canvas id="seriesChart"
+                            th:attr="data-primary-name=${selectedName}, data-companion-name=${companionName}"></canvas>
                 </div>
             </div>
         </div>
@@ -299,6 +309,7 @@
     -->
     <script id="timingData" type="application/json" th:utext="${timingsJson}">[]</script>
     <script id="seriesData" type="application/json" th:utext="${seriesJson}">[]</script>
+    <script id="companionSeriesData" type="application/json" th:utext="${companionSeriesJson}">[]</script>
     <script id="sessionRateData" type="application/json" th:utext="${sessionRateJson}">[]</script>
     <script th:src="@{/js/statistic-performance.js}"></script>
 </div>
