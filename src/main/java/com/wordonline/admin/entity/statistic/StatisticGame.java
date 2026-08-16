@@ -27,6 +27,12 @@ public class StatisticGame {
     private Long lossUserId;
     private Long duration;
     private LocalDateTime createdAt;
+    private String serverVersion;
+    private Integer eventSchemaVersion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "outcome")
+    private GameOutcome outcome;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "game_type")

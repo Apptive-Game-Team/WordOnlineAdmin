@@ -1,60 +1,50 @@
 package com.wordonline.admin.client;
 
-import java.util.List;
+import java.time.Duration;
 
 import jakarta.annotation.PostConstruct;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-
-import com.wordonline.admin.entity.server.Server;
-import com.wordonline.admin.entity.server.ServerState;
-import com.wordonline.admin.entity.server.ServerType;
-import com.wordonline.admin.repository.server.ServerRepository;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class GameServerClient {
 
-    private final ServerRepository serverRepository;
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(2);
+
     private final RestClient.Builder builder;
     private RestClient restClient;
 
     @PostConstruct
     private void initRestClient() {
-        restClient = builder.build();
+        // An admin waits for this button, so an unreachable game server must fail fast.
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(REQUEST_TIMEOUT);
+        requestFactory.setReadTimeout(REQUEST_TIMEOUT);
+        restClient = builder.clone().requestFactory(requestFactory).build();
     }
 
-    public void invalidateCache() {
-        List<String> serverUrls = serverRepository
-                .findAllByTypeAndState(ServerType.GAME, ServerState.ACTIVE)
-                .stream()
-                .map(Server::getUrl)
-                .toList();
-
-        boolean hasError = serverUrls.stream()
-                 .map(this::mapToResponseEntity)
-                 .map(ResponseEntity::getStatusCode)
-                 .toList().stream() // To ensure the stream is fully executed
-                 .anyMatch(HttpStatusCode::isError);
-
-        if (hasError) {
-            log.error("Can't Invalidate Cache");
+    /**
+     * @return {@code true} when the given game server dropped its cache. One unreachable server
+     *         must not stop the caller from reaching the rest, so failures are reported instead
+     *         of thrown.
+     */
+    public boolean invalidateCache(String serverUrl) {
+        try {
+            restClient.post()
+                    .uri(serverUrl + "/api/admin/invalidate")
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        } catch (Exception e) {
+            log.error("Can't invalidate cache on {}: {}", serverUrl, e.getMessage());
+            return false;
         }
     }
-
-    private ResponseEntity<Void> mapToResponseEntity(String url) {
-        return restClient.post()
-                .uri(url + "/api/admin/invalidate")
-                .retrieve()
-                .toEntity(Void.class);
-    }
-
-
 }

@@ -1,6 +1,5 @@
 package com.wordonline.admin.controller;
 
-import com.wordonline.admin.client.GameServerClient;
 import com.wordonline.admin.entity.parameter.GameObject;
 import com.wordonline.admin.repository.parameter.GameObjectRepository;
 import com.wordonline.admin.repository.parameter.ParameterRepository;
@@ -15,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor
@@ -22,7 +22,6 @@ public class AdminPageController {
 
     private final GameObjectRepository gameObjectRepository;
     private final ParameterRepository parameterRepository;
-    private final GameServerClient gameServerClient;
     private final TagRepository tagRepository;
     private final ServerService serverService;
     private final ParameterService parameterService;
@@ -30,7 +29,8 @@ public class AdminPageController {
 
     @GetMapping("/")
     public String index(Model model) {
-        model.addAttribute("servers", serverService.getAllServers());
+        model.addAttribute("primaryServers", serverService.getPrimaryServers());
+        model.addAttribute("secondaryServers", serverService.getSecondaryServers());
         model.addAttribute("secondaryDatabaseEnabled", parameterService.hasSecondaryDatabase());
         return "index";
     }
@@ -91,8 +91,11 @@ public class AdminPageController {
 
     @PreAuthorize("hasAuthority('WORDONLINE_ADMIN')")
     @GetMapping("/admin/invalidate-cache")
-    public String invalidateCache() {
-        gameServerClient.invalidateCache();
+    public String invalidateCache(RedirectAttributes redirectAttributes) {
+        int failed = serverService.invalidateGameServerCaches();
+        if (failed > 0) {
+            redirectAttributes.addFlashAttribute("invalidateCacheError", failed);
+        }
         return "redirect:/";
     }
 }

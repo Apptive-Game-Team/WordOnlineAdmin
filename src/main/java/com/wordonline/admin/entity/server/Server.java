@@ -8,6 +8,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.Instant;
+
 import lombok.Getter;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -35,8 +37,31 @@ public class Server {
     @Enumerated(EnumType.STRING)
     private ServerState state;
 
+    /** Written by the game server on every heartbeat. Read-only here. */
+    private Integer sessionCount;
+
+    /** Written by the game server on every heartbeat. {@code null} means it never reported. */
+    private Instant lastHeartbeatAt;
+
+    /**
+     * Override for the game server's bot scheduler target session count. Written here, read by
+     * the game server on every scheduler tick. {@code null} means no override; the game server
+     * then uses its configured default. Updated only through the targeted repository query so a
+     * whole-entity save cannot race the game server's heartbeat writes.
+     */
+    private Integer targetBotSessions;
+
     public String getUrl() {
         return String.format("%s://%s:%d", protocol, domain, port);
+    }
+
+    public Server(Long id, String protocol, String domain, Integer port, ServerType type, ServerState state,
+                  Integer sessionCount, Instant lastHeartbeatAt) {
+        this(id, protocol, domain, port, type, state, sessionCount, lastHeartbeatAt, null);
+    }
+
+    public Server(Long id, String protocol, String domain, Integer port, ServerType type, ServerState state) {
+        this(id, protocol, domain, port, type, state, null, null);
     }
 
     public Server(String protocol, String domain, int port, ServerType serverType, ServerState state) {
