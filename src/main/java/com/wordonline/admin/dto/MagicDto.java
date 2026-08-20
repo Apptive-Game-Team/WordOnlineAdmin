@@ -7,6 +7,8 @@ import com.wordonline.admin.entity.magic.Magic;
 public record MagicDto(
         long id,
         String name,
+        String castType,
+        String accessType,
         List<CardDto> cardDtos
 ) {
 
@@ -14,6 +16,8 @@ public record MagicDto(
         this(
                 magic.getId(),
                 magic.getName(),
+                magic.getCastType(),
+                magic.getAccessType(),
                 magic.getMagicCards()
                         .stream()
                         .map(CardDto::new)
@@ -21,4 +25,3 @@ public record MagicDto(
         );
     }
 }
-

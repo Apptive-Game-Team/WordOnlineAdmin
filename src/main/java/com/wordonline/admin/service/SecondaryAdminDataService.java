@@ -35,7 +35,7 @@ public class SecondaryAdminDataService {
     public record ScenarioRow(Long id, Long stageId) {}
     public record QuestRow(Long id, String progressChecker, Integer requireValue, String rewardGiver) {}
     public record RewardParamRow(Long id, Long questId, String name, Integer value) {}
-    public record MagicRow(Long id, String name) {}
+    public record MagicRow(Long id, String name, String castType, String accessType) {}
     public record MagicCardRow(Long id, Long magicId, Long cardId) {}
 
     public List<AdventureDto> getAdventures() {
@@ -100,7 +100,13 @@ public class SecondaryAdminDataService {
         ));
 
         return getMagicRows().stream()
-                .map(row -> new MagicDto(row.id(), row.name(), cardsByMagicId.getOrDefault(row.id(), List.of())))
+                .map(row -> new MagicDto(
+                        row.id(),
+                        row.name(),
+                        row.castType(),
+                        row.accessType(),
+                        cardsByMagicId.getOrDefault(row.id(), List.of())
+                ))
                 .toList();
     }
 
@@ -185,12 +191,23 @@ public class SecondaryAdminDataService {
         jdbcTemplate.update("insert into reward_params (quest_id, name, value) values (?, ?, ?)", questId, name, value);
     }
 
-    public void createMagic(String name) {
-        jdbcTemplate.update("insert into magics (name) values (?)", name);
+    public void createMagic(String name, String castType, String accessType) {
+        jdbcTemplate.update(
+                "insert into magics (name, cast_type, access_type) values (?, ?, ?)",
+                name,
+                castType,
+                accessType
+        );
     }
 
-    public void updateMagicName(Long id, String name) {
-        jdbcTemplate.update("update magics set name = ? where id = ?", name, id);
+    public void updateMagic(Long id, String name, String castType, String accessType) {
+        jdbcTemplate.update(
+                "update magics set name = ?, cast_type = ?, access_type = ? where id = ?",
+                name,
+                castType,
+                accessType,
+                id
+        );
     }
 
     public void deleteMagic(Long id) {
@@ -213,10 +230,12 @@ public class SecondaryAdminDataService {
         }
     }
 
-    public void updateMagicName(String currentName, String newName) {
+    public void updateMagic(String currentName, String newName, String castType, String accessType) {
         int updated = jdbcTemplate.update(
-                "update magics set name = ? where name = ?",
+                "update magics set name = ?, cast_type = ?, access_type = ? where name = ?",
                 newName,
+                castType,
+                accessType,
                 currentName
         );
         if (updated == 0) {
@@ -378,6 +397,7 @@ public class SecondaryAdminDataService {
 
     public SyncResult syncMagicsToSecondary(List<MagicDto> magics) {
         int created = 0;
+        int updated = 0;
         int unchanged = 0;
         List<String> changed = new ArrayList<>();
         Map<String, MagicRow> existingMagics = getMagicRows().stream()
@@ -394,15 +414,28 @@ public class SecondaryAdminDataService {
             Long targetMagicId;
             if (existing == null) {
                 targetMagicId = jdbcTemplate.queryForObject(
-                        "insert into magics (name) values (?) returning id",
+                        """
+                        insert into magics (name, cast_type, access_type)
+                        values (?, ?, ?)
+                        returning id
+                        """,
                         Long.class,
-                        magic.name()
+                        magic.name(),
+                        magic.castType(),
+                        magic.accessType()
                 );
                 created++;
                 changed.add(magic.name());
             } else {
                 targetMagicId = existing.id();
-                unchanged++;
+                if (!Objects.equals(existing.castType(), magic.castType())
+                        || !Objects.equals(existing.accessType(), magic.accessType())) {
+                    updateMagic(targetMagicId, magic.name(), magic.castType(), magic.accessType());
+                    updated++;
+                    changed.add(magic.name());
+                } else {
+                    unchanged++;
+                }
             }
 
             jdbcTemplate.update("delete from magic_cards where magic_id = ?", targetMagicId);
@@ -425,7 +458,7 @@ public class SecondaryAdminDataService {
             }
         }
 
-        return new SyncResult(created, 0, unchanged, changed);
+        return new SyncResult(created, updated, unchanged, changed);
     }
 
     public List<AdventureRow> getAdventureRows() {
@@ -475,8 +508,13 @@ public class SecondaryAdminDataService {
 
     public List<MagicRow> getMagicRows() {
         return jdbcTemplate.query(
-                "select id, name from magics order by id",
-                (rs, rowNum) -> new MagicRow(rs.getLong("id"), rs.getString("name"))
+                "select id, name, cast_type, access_type from magics order by id",
+                (rs, rowNum) -> new MagicRow(
+                        rs.getLong("id"),
+                        rs.getString("name"),
+                        rs.getString("cast_type"),
+                        rs.getString("access_type")
+                )
         );
     }
 
