@@ -3,6 +3,7 @@ package com.wordonline.admin.service;
 import com.wordonline.admin.dto.counter.CounterRuleDto;
 import com.wordonline.admin.dto.counter.CounterRuleForm;
 import com.wordonline.admin.dto.counter.MagicTagDto;
+import com.wordonline.admin.dto.counter.MagicTagForm;
 import com.wordonline.admin.repository.counter.CounterRuleRepository;
 import com.wordonline.admin.repository.counter.MagicTagRepository;
 import org.junit.jupiter.api.Test;
@@ -110,6 +111,54 @@ class CounterRuleAdminServiceTest {
 
         verify(counterRuleRepository).create("CAT_CC", "CAT_Large", 1.5);
         verify(counterRuleRepository).updateWeight("CAT_AoE", "CAT_Small", 2.0);
+    }
+
+    @Test
+    void attachesATagTheMagicDoesNotHaveYet() {
+        when(magicTagRepository.exists("rallying_torch", "CAT_Buff")).thenReturn(false);
+
+        service().attachTag(new MagicTagForm("rallying_torch", "CAT_Buff"));
+
+        verify(magicTagRepository).attach("rallying_torch", "CAT_Buff");
+    }
+
+    @Test
+    void detachesATagByMagicNameBecauseMagicIdsDifferBetweenDatabases() {
+        service().detachTag(new MagicTagForm("  rallying_torch  ", " CAT_Buff "));
+
+        verify(magicTagRepository).detach("rallying_torch", "CAT_Buff");
+    }
+
+    @Test
+    void rejectsABlankMagicOrTagBeforeTouchingTheDatabase() {
+        assertThrows(IllegalArgumentException.class, () -> new MagicTagForm(" ", "CAT_Buff"));
+        assertThrows(IllegalArgumentException.class, () -> new MagicTagForm("rallying_torch", null));
+    }
+
+    @Test
+    void rejectsAnAlreadyAttachedTagWithAReadableMessageInsteadOfHittingThePrimaryKey() {
+        when(magicTagRepository.exists("rallying_torch", "CAT_Buff")).thenReturn(true);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> service().attachTag(new MagicTagForm("rallying_torch", "CAT_Buff")));
+
+        assertTrue(exception.getMessage().contains("rallying_torch"));
+        assertTrue(exception.getMessage().contains("CAT_Buff"));
+        verify(magicTagRepository, never()).attach(anyString(), anyString());
+    }
+
+    @Test
+    void translatesTheMagicTagPrimaryKeyViolationIntoTheSameMessage() {
+        // A resync can land between the pre-check and the insert; magic_tags(magic_id, tag_id) then
+        // decides, and that failure must not reach the page as raw SQL.
+        when(magicTagRepository.exists("rallying_torch", "CAT_Buff")).thenReturn(false);
+        doThrow(new DataIntegrityViolationException("magic_tags_pkey"))
+                .when(magicTagRepository).attach("rallying_torch", "CAT_Buff");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> service().attachTag(new MagicTagForm("rallying_torch", "CAT_Buff")));
+
+        assertTrue(exception.getMessage().contains("already has tag"));
     }
 
     private CounterRuleAdminService service() {

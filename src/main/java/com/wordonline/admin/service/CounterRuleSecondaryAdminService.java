@@ -3,6 +3,7 @@ package com.wordonline.admin.service;
 import com.wordonline.admin.dto.counter.CounterRuleDto;
 import com.wordonline.admin.dto.counter.CounterRuleForm;
 import com.wordonline.admin.dto.counter.MagicTagDto;
+import com.wordonline.admin.dto.counter.MagicTagForm;
 import com.wordonline.admin.repository.counter.MagicTagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -124,8 +125,55 @@ public class CounterRuleSecondaryAdminService {
         return created;
     }
 
+    public void attachTag(MagicTagForm form) {
+        if (hasMagicTag(form)) {
+            throw new IllegalArgumentException(duplicateTagMessage(form));
+        }
+        int inserted;
+        try {
+            inserted = jdbcTemplate.update("""
+                    INSERT INTO magic_tags(magic_id, tag_id)
+                    SELECT m.id, t.id
+                    FROM magics m, tags t
+                    WHERE m.name = ? AND t.name = ?
+                    """, form.magicName(), form.tagName());
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalArgumentException(duplicateTagMessage(form), exception);
+        }
+        if (inserted != 1) {
+            throw new IllegalArgumentException("Dev magic or tag not found: "
+                    + form.magicName() + " or " + form.tagName());
+        }
+    }
+
+    public void detachTag(MagicTagForm form) {
+        int deleted = jdbcTemplate.update("""
+                DELETE FROM magic_tags
+                WHERE magic_id = (SELECT id FROM magics WHERE name = ?)
+                  AND tag_id = (SELECT id FROM tags WHERE name = ?)
+                """, form.magicName(), form.tagName());
+        if (deleted != 1) {
+            throw new IllegalArgumentException("Dev magic " + form.magicName()
+                    + " does not have tag " + form.tagName());
+        }
+    }
+
     public int syncMagicTags() {
         Integer synced = jdbcTemplate.queryForObject("SELECT sync_magic_tags_from_game_objects()", Integer.class);
         return synced == null ? 0 : synced;
+    }
+
+    private boolean hasMagicTag(MagicTagForm form) {
+        return !jdbcTemplate.queryForList("""
+                SELECT mt.tag_id
+                FROM magic_tags mt
+                JOIN magics m ON m.id = mt.magic_id
+                JOIN tags t ON t.id = mt.tag_id
+                WHERE m.name = ? AND t.name = ?
+                """, Long.class, form.magicName(), form.tagName()).isEmpty();
+    }
+
+    private String duplicateTagMessage(MagicTagForm form) {
+        return "Dev magic " + form.magicName() + " already has tag " + form.tagName();
     }
 }

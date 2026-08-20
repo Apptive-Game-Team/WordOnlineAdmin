@@ -33,6 +33,46 @@ public class MagicTagRepository {
         )).toList();
     }
 
+    public boolean exists(String magicName, String tagName) {
+        Number count = (Number) entityManager.createNativeQuery("""
+                SELECT COUNT(*)
+                FROM magic_tags mt
+                JOIN magics m ON m.id = mt.magic_id
+                JOIN tags t ON t.id = mt.tag_id
+                WHERE m.name = :magic AND t.name = :tag
+                """).setParameter("magic", magicName)
+                .setParameter("tag", tagName)
+                .getSingleResult();
+        return count.intValue() > 0;
+    }
+
+    public void attach(String magicName, String tagName) {
+        int inserted = entityManager.createNativeQuery("""
+                INSERT INTO magic_tags(magic_id, tag_id)
+                SELECT m.id, t.id
+                FROM magics m, tags t
+                WHERE m.name = :magic AND t.name = :tag
+                """).setParameter("magic", magicName)
+                .setParameter("tag", tagName)
+                .executeUpdate();
+        if (inserted != 1) {
+            throw new IllegalArgumentException("Magic or tag not found: " + magicName + " or " + tagName);
+        }
+    }
+
+    public void detach(String magicName, String tagName) {
+        int deleted = entityManager.createNativeQuery("""
+                DELETE FROM magic_tags
+                WHERE magic_id = (SELECT id FROM magics WHERE name = :magic)
+                  AND tag_id = (SELECT id FROM tags WHERE name = :tag)
+                """).setParameter("magic", magicName)
+                .setParameter("tag", tagName)
+                .executeUpdate();
+        if (deleted != 1) {
+            throw new IllegalArgumentException("Magic " + magicName + " does not have tag " + tagName);
+        }
+    }
+
     public int syncFromGameObjects() {
         return ((Number) entityManager.createNativeQuery("SELECT sync_magic_tags_from_game_objects()")
                 .getSingleResult()).intValue();

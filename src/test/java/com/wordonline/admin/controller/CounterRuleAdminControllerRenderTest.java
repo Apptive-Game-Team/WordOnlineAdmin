@@ -22,6 +22,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -74,6 +75,10 @@ class CounterRuleAdminControllerRenderTest {
         // 이 화면의 핵심. 태그가 없는 마법은 어떤 봇의 상성 판단에도 들어가지 않는다.
         assertThat(html).contains("rallying_torch", "태그가 하나도 없는 마법");
         assertThat(html).contains("sync_magic_tags_from_game_objects()");
+        // 태그를 직접 달고 뗄 수 있어야 도출이 닿지 않는 마법을 고칠 수 있다.
+        assertThat(html).contains("/admin/counter-rule/magic-tag", "/admin/counter-rule/magic-tag/delete");
+        // 손으로 뗀 도출 태그가 재동기화에서 돌아온다는 사실을 화면이 말하지 않으면 화면이 고장 난 것처럼 보인다.
+        assertThat(html).contains("손으로 뗀 태그는 재동기화에서 돌아온다");
         // 수정이 캐시 무효화 전까지 반영되지 않는다는 사실과, 그 버튼으로 가는 링크는 화면에 남아 있어야 한다.
         assertThat(html).contains("캐시를 비워야 반영된다", "/admin/invalidate-cache");
         // 페이지 스크립트가 자바스크립트 템플릿 리터럴을 쓰므로 마크업 부분만 검사한다.
@@ -106,6 +111,42 @@ class CounterRuleAdminControllerRenderTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/counter-rule"))
                 .andExpect(flash().attribute("error", "Counter rule already exists for CAT_AoE -> CAT_Small"));
+    }
+
+    @Test
+    @WithMockUser(authorities = "WORDONLINE_ADMIN")
+    void attachingATagTheMagicAlreadyHasComesBackAsAFlashMessageInsteadOfAnErrorPage() throws Exception {
+        when(counterRuleService.target("both")).thenReturn(CounterRuleDualDatabaseService.Target.BOTH);
+        doThrow(new IllegalArgumentException("Magic rallying_torch already has tag CAT_Buff"))
+                .when(counterRuleService).attachTag("rallying_torch", "CAT_Buff",
+                        CounterRuleDualDatabaseService.Target.BOTH);
+
+        mockMvc.perform(post("/admin/counter-rule/magic-tag")
+                        .param("magicName", "rallying_torch")
+                        .param("tagName", "CAT_Buff")
+                        .param("db", "both")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/counter-rule"))
+                .andExpect(flash().attribute("error", "Magic rallying_torch already has tag CAT_Buff"));
+    }
+
+    @Test
+    @WithMockUser(authorities = "WORDONLINE_ADMIN")
+    void detachingATagRoutesToTheChosenDatabaseAndWarnsThatAResyncRestoresIt() throws Exception {
+        when(counterRuleService.target("secondary")).thenReturn(CounterRuleDualDatabaseService.Target.SECONDARY);
+
+        mockMvc.perform(post("/admin/counter-rule/magic-tag/delete")
+                        .param("magicName", "rallying_torch")
+                        .param("tagName", "CAT_Buff")
+                        .param("db", "secondary")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("message",
+                        "Tag CAT_Buff detached from rallying_torch; a derived tag returns on the next resync"));
+
+        verify(counterRuleService).detachTag("rallying_torch", "CAT_Buff",
+                CounterRuleDualDatabaseService.Target.SECONDARY);
     }
 
     /** 렌더되지 않은 Thymeleaf 표현식을 찾기 위해 페이지 스크립트 앞까지만 본다. */

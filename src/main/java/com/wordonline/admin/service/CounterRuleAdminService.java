@@ -3,6 +3,7 @@ package com.wordonline.admin.service;
 import com.wordonline.admin.dto.counter.CounterRuleDto;
 import com.wordonline.admin.dto.counter.CounterRuleForm;
 import com.wordonline.admin.dto.counter.MagicTagDto;
+import com.wordonline.admin.dto.counter.MagicTagForm;
 import com.wordonline.admin.repository.counter.CounterRuleRepository;
 import com.wordonline.admin.repository.counter.MagicTagRepository;
 import jakarta.persistence.PersistenceException;
@@ -75,6 +76,22 @@ public class CounterRuleAdminService {
         return created;
     }
 
+    public void attachTag(MagicTagForm form) {
+        rejectExistingMagicTag(form);
+        try {
+            magicTagRepository.attach(form.magicName(), form.tagName());
+        } catch (DataIntegrityViolationException | PersistenceException exception) {
+            // The primary key magic_tags(magic_id, tag_id) is the last line of defence when two
+            // admins attach the same tag at once, or when a resync lands between the pre-check and
+            // the insert; without this the page would show a raw SQL failure.
+            throw new IllegalArgumentException(duplicateTagMessage(form), exception);
+        }
+    }
+
+    public void detachTag(MagicTagForm form) {
+        magicTagRepository.detach(form.magicName(), form.tagName());
+    }
+
     public int syncMagicTags() {
         return magicTagRepository.syncFromGameObjects();
     }
@@ -87,6 +104,17 @@ public class CounterRuleAdminService {
         if (counterRuleRepository.existsPair(attackerTagName, targetTagName)) {
             throw new IllegalArgumentException(duplicateMessage(attackerTagName, targetTagName));
         }
+    }
+
+    private void rejectExistingMagicTag(MagicTagForm form) {
+        if (magicTagRepository.exists(form.magicName(), form.tagName())) {
+            throw new IllegalArgumentException(duplicateTagMessage(form));
+        }
+    }
+
+    private String duplicateTagMessage(MagicTagForm form) {
+        return "Magic " + form.magicName() + " already has tag " + form.tagName()
+                + "; a magic holds each tag at most once";
     }
 
     private void validate(CounterRuleForm form) {

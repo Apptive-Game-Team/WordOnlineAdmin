@@ -4,6 +4,7 @@ import com.wordonline.admin.dto.counter.CounterRuleComparisonDto;
 import com.wordonline.admin.dto.counter.CounterRuleDto;
 import com.wordonline.admin.dto.counter.CounterRuleForm;
 import com.wordonline.admin.dto.counter.MagicTagDto;
+import com.wordonline.admin.dto.counter.MagicTagForm;
 import com.wordonline.admin.dto.counter.MagicTagSyncResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -129,6 +131,58 @@ class CounterRuleDualDatabaseServiceTest {
         when(secondaryProvider.getIfAvailable()).thenReturn(null);
 
         assertEquals(List.<MagicTagDto>of(), service().untaggedSecondaryMagics());
+    }
+
+    @Test
+    void magicTagAttachOnBothWritesDeployThenDev() {
+        when(secondaryProvider.getIfAvailable()).thenReturn(secondary);
+        MagicTagForm form = new MagicTagForm("rallying_torch", "CAT_Buff");
+
+        service().attachTag("rallying_torch", "CAT_Buff", CounterRuleDualDatabaseService.Target.BOTH);
+
+        verify(primary).attachTag(form);
+        verify(secondary).attachTag(form);
+    }
+
+    @Test
+    void magicTagDetachOnSecondaryOnlyTouchesDev() {
+        when(secondaryProvider.getIfAvailable()).thenReturn(secondary);
+        MagicTagForm form = new MagicTagForm("rallying_torch", "CAT_Buff");
+
+        service().detachTag("rallying_torch", "CAT_Buff", CounterRuleDualDatabaseService.Target.SECONDARY);
+
+        verify(secondary).detachTag(form);
+        verify(primary, never()).detachTag(form);
+    }
+
+    @Test
+    void magicTagEditOnPrimaryStillWorksWithoutADevDatabase() {
+        service().attachTag("rallying_torch", "CAT_Buff", CounterRuleDualDatabaseService.Target.PRIMARY);
+
+        verify(primary).attachTag(new MagicTagForm("rallying_torch", "CAT_Buff"));
+    }
+
+    @Test
+    void magicTagEditOnDevFailsWhenDevDatabaseIsMissing() {
+        when(secondaryProvider.getIfAvailable()).thenReturn(null);
+
+        assertThrows(IllegalStateException.class, () -> service().attachTag(
+                "rallying_torch", "CAT_Buff", CounterRuleDualDatabaseService.Target.SECONDARY));
+        verify(primary, never()).attachTag(new MagicTagForm("rallying_torch", "CAT_Buff"));
+    }
+
+    @Test
+    void aFailedDevAttachAfterASucceededDeployAttachSaysSo() {
+        when(secondaryProvider.getIfAvailable()).thenReturn(secondary);
+        MagicTagForm form = new MagicTagForm("rallying_torch", "CAT_Buff");
+        doThrow(new IllegalArgumentException("Dev magic rallying_torch already has tag CAT_Buff"))
+                .when(secondary).attachTag(form);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> service()
+                .attachTag("rallying_torch", "CAT_Buff", CounterRuleDualDatabaseService.Target.BOTH));
+
+        assertTrue(exception.getMessage().contains("Deploy succeeded but Dev magic tag attach failed"));
+        verify(primary).attachTag(form);
     }
 
     private CounterRuleDualDatabaseService service() {

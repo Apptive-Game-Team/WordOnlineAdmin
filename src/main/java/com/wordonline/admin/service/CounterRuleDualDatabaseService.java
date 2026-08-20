@@ -6,6 +6,7 @@ import com.wordonline.admin.dto.counter.CounterRuleForm;
 import com.wordonline.admin.dto.counter.CounterRuleSyncResult;
 import com.wordonline.admin.dto.counter.MagicTagComparisonDto;
 import com.wordonline.admin.dto.counter.MagicTagDto;
+import com.wordonline.admin.dto.counter.MagicTagForm;
 import com.wordonline.admin.dto.counter.MagicTagSyncResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -95,6 +96,20 @@ public class CounterRuleDualDatabaseService {
         if (target != Target.PRIMARY) {
             applySecondary(target, "rule delete", () -> secondary().delete(attackerTagName, targetTagName));
         }
+    }
+
+    public void attachTag(String magicName, String tagName, Target target) {
+        MagicTagForm form = new MagicTagForm(magicName, tagName);
+        requireSecondary(target);
+        if (target != Target.SECONDARY) primary.attachTag(form);
+        if (target != Target.PRIMARY) applySecondary(target, "magic tag attach", () -> secondary().attachTag(form));
+    }
+
+    public void detachTag(String magicName, String tagName, Target target) {
+        MagicTagForm form = new MagicTagForm(magicName, tagName);
+        requireSecondary(target);
+        if (target != Target.SECONDARY) primary.detachTag(form);
+        if (target != Target.PRIMARY) applySecondary(target, "magic tag detach", () -> secondary().detachTag(form));
     }
 
     public CounterRuleSyncResult syncToSecondary() {

@@ -65,6 +65,27 @@ public class CounterRuleAdminController {
         return "redirect:/admin/counter-rule";
     }
 
+    @PostMapping("/magic-tag")
+    public String attachTag(@RequestParam String magicName,
+                            @RequestParam String tagName,
+                            @RequestParam(defaultValue = "primary") String db,
+                            RedirectAttributes redirectAttributes) {
+        counterRuleService.attachTag(magicName, tagName, counterRuleService.target(db));
+        redirectAttributes.addFlashAttribute("message", "Tag " + tagName + " attached to " + magicName);
+        return "redirect:/admin/counter-rule";
+    }
+
+    @PostMapping("/magic-tag/delete")
+    public String detachTag(@RequestParam String magicName,
+                            @RequestParam String tagName,
+                            @RequestParam(defaultValue = "primary") String db,
+                            RedirectAttributes redirectAttributes) {
+        counterRuleService.detachTag(magicName, tagName, counterRuleService.target(db));
+        redirectAttributes.addFlashAttribute("message", "Tag " + tagName + " detached from " + magicName
+                + "; a derived tag returns on the next resync");
+        return "redirect:/admin/counter-rule";
+    }
+
     @PostMapping("/sync-to-secondary")
     public ResponseEntity<String> syncToSecondary() {
         return respond(() -> counterRuleService.syncToSecondary().message("Counter rules: Deploy -> Dev"));
