@@ -5,6 +5,7 @@ import com.wordonline.admin.dto.MagicComparisonDto;
 import com.wordonline.admin.dto.MagicDto;
 import com.wordonline.admin.entity.magic.CardType;
 import com.wordonline.admin.entity.magic.Magic;
+import com.wordonline.admin.entity.magic.MagicAccessType;
 import com.wordonline.admin.repository.magic.CardRepository;
 import com.wordonline.admin.repository.magic.MagicCardRepository;
 import com.wordonline.admin.repository.magic.MagicRepository;
@@ -83,12 +84,12 @@ class MagicServiceTest {
     }
 
     @Test
-    void rejectsACreateWithoutAnAccessType() {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> magicService.createMagic("fireball", "spawn", "  ", false));
+    void storesTheColumnDefaultWhenNoAccessTypeIsSubmitted() {
+        magicService.createMagic("fireball", "spawn", "  ", false);
 
-        assertTrue(exception.getMessage().contains("access type"));
-        verify(magicRepository, never()).saveAndFlush(any(Magic.class));
+        ArgumentCaptor<Magic> saved = ArgumentCaptor.forClass(Magic.class);
+        verify(magicRepository).saveAndFlush(saved.capture());
+        assertEquals(MagicAccessType.DEFAULT, saved.getValue().getAccessType());
     }
 
     @Test

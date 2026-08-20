@@ -29,9 +29,14 @@ public final class MagicAccessType {
         return List.of(DEFAULT);
     }
 
-    public static String requireStorableValue(String value) {
+    /**
+     * Falls back to {@link #DEFAULT} when nothing was submitted, which is what the column itself
+     * does. The admin endpoints declare the parameter optional; rejecting a value the schema
+     * supplies on its own would make them stricter than the table they write to.
+     */
+    public static String storableValueOrDefault(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(rejectionMessage(value));
+            return DEFAULT;
         }
 
         String trimmed = value.trim();

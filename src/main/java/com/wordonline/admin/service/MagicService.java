@@ -119,7 +119,7 @@ public class MagicService {
 
     public void updateMagic(long magicId, String name, String castType, String accessType, boolean secondary) {
         String storedCastType = MagicCastType.requireStoredValue(castType);
-        String storedAccessType = MagicAccessType.requireStorableValue(accessType);
+        String storedAccessType = MagicAccessType.storableValueOrDefault(accessType);
 
         if (secondary) {
             rejectRowTheDatabaseRefuses(
@@ -137,7 +137,7 @@ public class MagicService {
 
     public void createMagic(String name, String castType, String accessType, boolean secondary) {
         String storedCastType = MagicCastType.requireStoredValue(castType);
-        String storedAccessType = MagicAccessType.requireStorableValue(accessType);
+        String storedAccessType = MagicAccessType.storableValueOrDefault(accessType);
 
         if (secondary) {
             rejectRowTheDatabaseRefuses(
@@ -159,7 +159,7 @@ public class MagicService {
 
     public void updateMagic(String currentName, String newName, String castType, String accessType, boolean secondary) {
         String storedCastType = MagicCastType.requireStoredValue(castType);
-        String storedAccessType = MagicAccessType.requireStorableValue(accessType);
+        String storedAccessType = MagicAccessType.storableValueOrDefault(accessType);
 
         if (secondary) {
             rejectRowTheDatabaseRefuses(
