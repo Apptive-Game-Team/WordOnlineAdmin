@@ -6,4 +6,7 @@ import com.wordonline.admin.entity.tag.Tag;
 
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
+    boolean existsByName(String name);
+
+    boolean existsByNameAndIdNot(String name, Long id);
 }
