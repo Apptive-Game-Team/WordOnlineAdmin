@@ -71,9 +71,11 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
-            }).then(response => {
+            }).then(async response => {
                 if (response.ok) {
                     window.location.reload();
+                } else {
+                    alert(await response.text());
                 }
             });
         });
@@ -93,9 +95,11 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
-                }).then(response => {
+                }).then(async response => {
                     if (response.ok) {
                         window.location.reload();
+                    } else {
+                        alert(await response.text());
                     }
                 });
             });

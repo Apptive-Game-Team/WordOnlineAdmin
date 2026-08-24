@@ -3,9 +3,11 @@ package com.wordonline.admin.controller;
 import java.net.URI;
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -56,5 +58,13 @@ public class TagController {
         return ResponseEntity.ok(
                 "Successfully removed"
         );
+    }
+
+    // These endpoints are called by fetch() from admin-tag.html, so they answer with the message in
+    // the body instead of redirecting. A name another tag already holds is a conflict with existing
+    // data, not a malformed request, so it answers 409.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> reportDuplicateName(IllegalArgumentException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
     }
 }

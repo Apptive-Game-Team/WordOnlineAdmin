@@ -119,6 +119,7 @@ public class BotAdminService {
         form.setReactionIntervalFrames(source.reactionIntervalFrames());
         form.setCounterAggression(source.counterAggression());
         form.setEnabled(source.enabled());
+        form.setHospitality(source.hospitality());
         form.setMmr(source.mmr());
         form.setStatus(source.status());
         form.setDeckName(source.selectedDeckName() == null ? "Bot Deck" : source.selectedDeckName());
@@ -127,14 +128,15 @@ public class BotAdminService {
 
     private void validate(BotForm form) {
         form.setName(requireText(form.getName(), "Name"));
-        if (!List.of("INTRO", "BEGINNER", "INTERMEDIATE", "ADVANCED", "ELITE").contains(form.getTier())) {
+        if (!List.of("INTRO", "BEGINNER", "INTERMEDIATE", "ADVANCED", "ELITE", "HOSPITALITY").contains(form.getTier())) {
             throw new IllegalArgumentException("Unsupported bot tier");
         }
         if (form.getThinkingTimeMs() < 0 || form.getReactionIntervalFrames() < 1) {
             throw new IllegalArgumentException("Invalid bot timing");
         }
-        if (form.getCounterAggression() < 0 || form.getCounterAggression() > 1) {
-            throw new IllegalArgumentException("Counter aggression must be between 0 and 1");
+        // 부호가 방향을 고른다. 음수는 접대 봇이 필드에 지는 수를 고르게 한다.
+        if (form.getCounterAggression() < -1 || form.getCounterAggression() > 1) {
+            throw new IllegalArgumentException("Counter aggression must be between -1 and 1");
         }
         if (!List.of("Online", "OnMatching", "OnPlaying").contains(form.getStatus())) {
             throw new IllegalArgumentException("Unsupported user status");

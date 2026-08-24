@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head th:replace="~{layout :: header('Counter Rule Management')}"></head>
+<body><main layout:fragment="content">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>Tag Counter Rules</h1>
+        <div>
+            <button id="sync-to-secondary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Deploy → Dev</button>
+            <button id="sync-to-primary" class="btn btn-outline-secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev → Deploy</button>
+        </div>
+    </div>
+    <div th:if="${message}" class="alert alert-success mt-2" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-danger mt-2" th:text="${error}"></div>
+    <div id="sync-result" class="alert mt-2 d-none"></div>
+
+    <div class="alert alert-info mt-2 mb-3">
+        <strong>수정은 캐시를 비워야 반영된다.</strong>
+        게임 서버는 <code>tag_counter_rules</code>와 <code>magic_tags</code>를 모두 캐시하므로, 여기서 고친 값은 실행 중인 게임 서버에 저절로 반영되지 않는다.
+        편집을 마쳤으면 대시보드의 <a th:href="@{/admin/invalidate-cache}">🔄 Invalidate Cache</a>를 눌러 캐시를 비워야 한다.
+        속성 상성은 여기에 넣지 않는다 — 게임 서버 <code>ElementalChart</code>가 단일 출처다.
+    </div>
+
+    <div class="alert mt-2" th:classappend="${#lists.isEmpty(untaggedPrimaryMagics) and #lists.isEmpty(untaggedSecondaryMagics)} ? 'alert-success' : 'alert-warning'">
+        <strong>태그가 하나도 없는 마법</strong>
+        — 태그가 없으면 <code>BotCounterEvaluator</code>가 중립값 <code>0.0</code>을 돌려주고 끝난다. 에러도 로그도 없이 모든 봇의 상성 판단에서 빠지므로, 이 목록이 그 누락을 볼 수 있는 유일한 자리다.
+        (지속 오브젝트를 만들지 않는 마법은 태그가 없는 것이 정상이다.)
+        <div class="mt-2">
+            <div><strong>Deploy</strong>
+                <span th:if="${#lists.isEmpty(untaggedPrimaryMagics)}" class="text-success">없음</span>
+                <span th:each="magic, iter : ${untaggedPrimaryMagics}" th:text="${magic.magicName} + (${iter.last} ? '' : ', ')"></span>
+            </div>
+            <div th:if="${secondaryDatabaseEnabled}"><strong>Dev</strong>
+                <span th:if="${#lists.isEmpty(untaggedSecondaryMagics)}" class="text-success">없음</span>
+                <span th:each="magic, iter : ${untaggedSecondaryMagics}" th:text="${magic.magicName} + (${iter.last} ? '' : ', ')"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <h2 class="h5">Rules</h2>
+            <table class="table table-bordered table-sm align-middle">
+                <thead><tr><th>Attacker</th><th>Target</th><th>Deploy</th><th>Dev</th><th>Weight / Target DB</th><th></th></tr></thead>
+                <tbody><tr th:each="rule : ${rules}" th:classappend="${rule.weightsDiffer} ? 'table-warning' : ''">
+                    <td th:text="${rule.attackerTagName}"></td>
+                    <td th:text="${rule.targetTagName}"></td>
+                    <td th:text="${rule.primaryPresent} ? ${rule.primary.weight} : 'N/A'" th:classappend="${rule.primaryPresent} ? '' : 'text-muted'"></td>
+                    <td th:text="${rule.secondaryPresent} ? ${rule.secondary.weight} : 'N/A'" th:classappend="${rule.secondaryPresent} ? '' : 'text-muted'"></td>
+                    <td>
+                        <form method="post" th:action="@{/admin/counter-rule/weight}" class="d-flex gap-1">
+                            <input type="hidden" name="attackerTagName" th:value="${rule.attackerTagName}">
+                            <input type="hidden" name="targetTagName" th:value="${rule.targetTagName}">
+                            <input class="form-control form-control-sm" type="number" step="0.1" name="weight"
+                                   th:value="${rule.primaryPresent} ? ${rule.primary.weight} : ${rule.secondary.weight}" required>
+                            <select class="form-select form-select-sm" name="db">
+                                <option value="primary">Deploy</option>
+                                <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                                <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+                            </select>
+                            <button class="btn btn-sm btn-info" type="submit">Update</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" th:action="@{/admin/counter-rule/delete}" class="d-flex gap-1"
+                              onsubmit="return confirm('이 상성 규칙을 삭제할까요?');">
+                            <input type="hidden" name="attackerTagName" th:value="${rule.attackerTagName}">
+                            <input type="hidden" name="targetTagName" th:value="${rule.targetTagName}">
+                            <select class="form-select form-select-sm" name="db">
+                                <option value="primary">Deploy</option>
+                                <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                                <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+                            </select>
+                            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(rules)}"><td colspan="6" class="text-muted">규칙이 없다. database #63이 아직 배포되지 않았다면 테이블 자체가 없다.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-4">
+            <h2 class="h5">Create rule</h2>
+            <form method="post" th:action="@{/admin/counter-rule}" th:object="${counterRuleForm}">
+                <label class="form-label">Target DB</label>
+                <select class="form-select" name="db">
+                    <option value="primary">Deploy</option>
+                    <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                    <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+                </select>
+                <label class="form-label mt-2">Attacker tag</label>
+                <select class="form-select" th:field="*{attackerTagName}" required>
+                    <option th:each="tag : ${tagNames}" th:value="${tag}" th:text="${tag}"></option>
+                </select>
+                <label class="form-label mt-2">Target tag</label>
+                <select class="form-select" th:field="*{targetTagName}" required>
+                    <option th:each="tag : ${tagNames}" th:value="${tag}" th:text="${tag}"></option>
+                </select>
+                <label class="form-label mt-2">Weight</label>
+                <input class="form-control" type="number" step="0.1" th:field="*{weight}" required>
+                <div class="form-text">봇의 점수 보너스이지 데미지 배수가 아니다. 시뮬레이션은 이 표를 읽지 않는다.</div>
+                <button class="btn btn-primary mt-3" type="submit">Create</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <h2 class="h5 mb-0">Magic Tags</h2>
+        <form id="sync-magic-tags-form" class="d-flex gap-1">
+            <select class="form-select form-select-sm" id="sync-magic-tags-db" name="db">
+                <option value="primary">Deploy</option>
+                <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+            </select>
+            <button class="btn btn-outline-secondary btn-sm" type="submit">sync_magic_tags_from_game_objects()</button>
+        </form>
+    </div>
+    <div class="alert alert-info py-2 mt-2 mb-0">
+        <strong>손으로 뗀 태그는 재동기화에서 돌아온다.</strong>
+        <code>game_object_tags</code>에서 도출되는 태그를 여기서 떼면 다음 <code>sync_magic_tags_from_game_objects()</code>가 다시 넣는다.
+        영구히 떼려면 <code>game_object_tags</code> 쪽을 고쳐야 한다.
+        손으로 <em>넣은</em> 태그는 재동기화가 건드리지 않는다.
+    </div>
+    <table class="table table-bordered table-sm align-middle mt-2">
+        <thead><tr><th>Magic</th><th>Deploy tags</th><th>Dev tags</th><th>Attach</th><th>Detach</th></tr></thead>
+        <tbody><tr th:each="magic : ${magics}" th:classappend="${magic.untaggedSomewhere} ? 'table-warning' : ''">
+            <td th:text="${magic.magicName}"></td>
+            <td th:if="${magic.primaryPresent}" th:text="${#lists.isEmpty(magic.primary.tagNames)} ? '태그 없음' : ${#strings.listJoin(magic.primary.tagNames, ', ')}"></td>
+            <td th:unless="${magic.primaryPresent}" class="text-muted">N/A</td>
+            <td th:if="${magic.secondaryPresent}" th:text="${#lists.isEmpty(magic.secondary.tagNames)} ? '태그 없음' : ${#strings.listJoin(magic.secondary.tagNames, ', ')}"></td>
+            <td th:unless="${magic.secondaryPresent}" class="text-muted">N/A</td>
+            <td>
+                <form method="post" th:action="@{/admin/counter-rule/magic-tag}" class="d-flex gap-1">
+                    <input type="hidden" name="magicName" th:value="${magic.magicName}">
+                    <select class="form-select form-select-sm" name="tagName" required>
+                        <option th:each="tag : ${tagNames}" th:value="${tag}" th:text="${tag}"></option>
+                    </select>
+                    <select class="form-select form-select-sm" name="db">
+                        <option value="primary">Deploy</option>
+                        <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                        <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" type="submit">Attach</button>
+                </form>
+            </td>
+            <td>
+                <form method="post" th:action="@{/admin/counter-rule/magic-tag/delete}" class="d-flex gap-1"
+                      onsubmit="return confirm('이 태그를 뗄까요? game_object_tags에서 도출되는 태그라면 다음 재동기화가 다시 넣는다.');">
+                    <input type="hidden" name="magicName" th:value="${magic.magicName}">
+                    <select class="form-select form-select-sm" name="tagName" required
+                            th:disabled="${#lists.isEmpty(magic.attachedTagNames)}">
+                        <option th:each="tag : ${magic.attachedTagNames}" th:value="${tag}" th:text="${tag}"></option>
+                    </select>
+                    <select class="form-select form-select-sm" name="db">
+                        <option value="primary">Deploy</option>
+                        <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
+                        <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-danger" type="submit"
+                            th:disabled="${#lists.isEmpty(magic.attachedTagNames)}">Detach</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(magics)}"><td colspan="5" class="text-muted">마법이 없다. database #63이 아직 배포되지 않았다면 <code>magic_tags</code> 테이블 자체가 없다.</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        async function postAndReport(url, message) {
+            if (!confirm(message)) return;
+            const response = await fetch(url, {method: 'POST'});
+            const result = document.getElementById('sync-result');
+            result.className = `alert mt-2 ${response.ok ? 'alert-success' : 'alert-danger'}`;
+            result.textContent = await response.text();
+            if (response.ok) setTimeout(() => location.reload(), 800);
+        }
+        document.getElementById('sync-to-secondary').addEventListener('click',
+            () => postAndReport('/admin/counter-rule/sync-to-secondary', 'Deploy 상성 규칙 전체를 Dev로 동기화할까요?'));
+        document.getElementById('sync-to-primary').addEventListener('click',
+            () => postAndReport('/admin/counter-rule/sync-to-primary', 'Dev 상성 규칙 전체를 Deploy로 동기화할까요?'));
+        document.getElementById('sync-magic-tags-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const db = document.getElementById('sync-magic-tags-db').value;
+            postAndReport(`/admin/counter-rule/sync-magic-tags?db=${db}`, 'game_object_tags에서 magic_tags를 다시 도출할까요?');
+        });
+    </script>
+</main></body></html>
