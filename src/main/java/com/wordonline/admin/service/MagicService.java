@@ -2,12 +2,14 @@ package com.wordonline.admin.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +20,14 @@ import com.wordonline.admin.dto.MagicCardComparisonDto;
 
 import com.wordonline.admin.entity.magic.Card;
 import com.wordonline.admin.entity.magic.Magic;
+import com.wordonline.admin.entity.magic.MagicAccessType;
 import com.wordonline.admin.entity.magic.MagicCard;
+import com.wordonline.admin.entity.magic.MagicCastType;
 import com.wordonline.admin.repository.magic.CardRepository;
 import com.wordonline.admin.repository.magic.MagicCardRepository;
 import com.wordonline.admin.repository.magic.MagicRepository;
 
+import jakarta.persistence.PersistenceException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -112,44 +117,86 @@ public class MagicService {
         magicRepository.deleteById(magicId);
     }
 
-    public void updateMagicName(long magicId, String name) {
-        updateMagicName(magicId, name, false);
-    }
+    public void updateMagic(long magicId, String name, String castType, String accessType, boolean secondary) {
+        String storedCastType = MagicCastType.requireStoredValue(castType);
+        String storedAccessType = MagicAccessType.storableValueOrDefault(accessType);
 
-    public void updateMagicName(long magicId, String name, boolean secondary) {
         if (secondary) {
-            secondaryAdminDataService.orElseThrow().updateMagicName(magicId, name);
+            rejectRowTheDatabaseRefuses(
+                    name,
+                    () -> secondaryAdminDataService.orElseThrow()
+                            .updateMagic(magicId, name, storedCastType, storedAccessType)
+            );
             return;
         }
 
-        magicRepository.findById(magicId)
-                .ifPresent(magic -> magic.setName(name));
+        Magic magic = magicRepository.findById(magicId)
+                .orElseThrow(() -> new IllegalArgumentException("Magic not found: " + magicId));
+        applyAndFlush(magic, name, storedCastType, storedAccessType);
     }
 
-    public void createMagic(String name) {
-        createMagic(name, false);
-    }
+    public void createMagic(String name, String castType, String accessType, boolean secondary) {
+        String storedCastType = MagicCastType.requireStoredValue(castType);
+        String storedAccessType = MagicAccessType.storableValueOrDefault(accessType);
 
-    public void createMagic(String name, boolean secondary) {
         if (secondary) {
-            secondaryAdminDataService.orElseThrow().createMagic(name);
+            rejectRowTheDatabaseRefuses(
+                    name,
+                    () -> secondaryAdminDataService.orElseThrow()
+                            .createMagic(name, storedCastType, storedAccessType)
+            );
             return;
         }
 
         Magic magic = new Magic();
         magic.setName(name);
-        magicRepository.save(magic);
+        magic.setCastType(storedCastType);
+        magic.setAccessType(storedAccessType);
+        // saveAndFlush so a CHECK violation fails here, where it can still become a readable
+        // message, instead of at commit time outside this method.
+        rejectRowTheDatabaseRefuses(name, () -> magicRepository.saveAndFlush(magic));
     }
 
-    public void updateMagicName(String currentName, String newName, boolean secondary) {
+    public void updateMagic(String currentName, String newName, String castType, String accessType, boolean secondary) {
+        String storedCastType = MagicCastType.requireStoredValue(castType);
+        String storedAccessType = MagicAccessType.storableValueOrDefault(accessType);
+
         if (secondary) {
-            secondaryAdminDataService.orElseThrow().updateMagicName(currentName, newName);
+            rejectRowTheDatabaseRefuses(
+                    newName,
+                    () -> secondaryAdminDataService.orElseThrow()
+                            .updateMagic(currentName, newName, storedCastType, storedAccessType)
+            );
             return;
         }
 
         Magic magic = magicRepository.findByName(currentName)
                 .orElseThrow(() -> new IllegalArgumentException("Magic not found: " + currentName));
-        magic.setName(newName);
+        applyAndFlush(magic, newName, storedCastType, storedAccessType);
+    }
+
+    private void applyAndFlush(Magic magic, String name, String storedCastType, String storedAccessType) {
+        magic.setName(name);
+        magic.setCastType(storedCastType);
+        magic.setAccessType(storedAccessType);
+        rejectRowTheDatabaseRefuses(name, () -> magicRepository.saveAndFlush(magic));
+    }
+
+    /**
+     * The database is the last word on both columns: cast_type carries a CHECK and access_type is a
+     * NOT NULL varchar(10). Without this the page would show the raw SQL failure.
+     */
+    private void rejectRowTheDatabaseRefuses(String name, Runnable save) {
+        try {
+            save.run();
+        } catch (DataIntegrityViolationException | PersistenceException exception) {
+            throw new IllegalArgumentException(
+                    "The database rejected magic '" + name + "': "
+                            + "cast type must be one of " + String.join(", ", MagicCastType.storedValues())
+                            + " and access type must be 1 to 10 characters",
+                    exception
+            );
+        }
     }
 
     public void removeMagic(String name, boolean secondary) {
@@ -193,54 +240,36 @@ public class MagicService {
 
     @Transactional(readOnly = true)
     public List<MagicComparisonDto> getMagicComparisons() {
-        Map<String, List<String>> primaryCardsByMagic = getAllMagic(false).stream()
-                .collect(Collectors.toMap(
-                        MagicDto::name,
-                        magic -> magic.cardDtos().stream()
-                                .map(CardDto::name)
-                                .sorted()
-                                .toList(),
-                        (current, replacement) -> {
-                            throw new IllegalStateException("Duplicate magic name in primary database");
-                        },
-                        TreeMap::new
-                ));
-        Map<String, List<String>> secondaryCardsByMagic = secondaryAdminDataService
-                .map(service -> service.getMagics().stream()
-                        .collect(Collectors.toMap(
-                                MagicDto::name,
-                                magic -> magic.cardDtos().stream()
-                                        .map(CardDto::name)
-                                        .sorted()
-                                        .toList(),
-                                (current, replacement) -> {
-                                    throw new IllegalStateException("Duplicate magic name in secondary database");
-                                },
-                                TreeMap::new
-                        )))
+        Map<String, MagicDto> primaryMagicsByName = indexByName(
+                getAllMagic(false),
+                "Duplicate magic name in primary database"
+        );
+        Map<String, MagicDto> secondaryMagicsByName = secondaryAdminDataService
+                .map(service -> indexByName(
+                        service.getMagics(),
+                        "Duplicate magic name in secondary database"
+                ))
                 .orElseGet(TreeMap::new);
-        Set<String> names = new TreeSet<>(primaryCardsByMagic.keySet());
-        names.addAll(secondaryCardsByMagic.keySet());
+        Set<String> names = new TreeSet<>(primaryMagicsByName.keySet());
+        names.addAll(secondaryMagicsByName.keySet());
 
         return names.stream()
                 .map(name -> {
-                    Set<String> primaryCardNames = new TreeSet<>(
-                            primaryCardsByMagic.getOrDefault(name, List.of())
-                    );
-                    Set<String> secondaryCardNames = new TreeSet<>(
-                            secondaryCardsByMagic.getOrDefault(name, List.of())
-                    );
+                    MagicDto primaryMagic = primaryMagicsByName.get(name);
+                    MagicDto secondaryMagic = secondaryMagicsByName.get(name);
+                    Set<String> primaryCardNames = cardNamesOf(primaryMagic);
+                    Set<String> secondaryCardNames = cardNamesOf(secondaryMagic);
                     Set<String> cardNames = new TreeSet<>(primaryCardNames);
                     cardNames.addAll(secondaryCardNames);
                     return new MagicComparisonDto(
                             name,
-                            primaryCardsByMagic.containsKey(name),
-                            secondaryCardsByMagic.containsKey(name),
+                            primaryMagic != null,
+                            secondaryMagic != null,
+                            primaryMagic == null ? null : primaryMagic.castType(),
+                            secondaryMagic == null ? null : secondaryMagic.castType(),
+                            primaryMagic == null ? null : primaryMagic.accessType(),
+                            secondaryMagic == null ? null : secondaryMagic.accessType(),
                             cardNames.stream()
-                                    .filter(cardName ->
-                                            primaryCardNames.contains(cardName)
-                                                || secondaryCardNames.contains(cardName)
-                                    )
                                     .map(cardName -> new MagicCardComparisonDto(
                                             cardName,
                                             primaryCardNames.contains(cardName),
@@ -250,6 +279,28 @@ public class MagicService {
                     );
                 })
                 .toList();
+    }
+
+    private Map<String, MagicDto> indexByName(List<MagicDto> magics, String duplicateMessage) {
+        return magics.stream()
+                .collect(Collectors.toMap(
+                        MagicDto::name,
+                        magic -> magic,
+                        (current, replacement) -> {
+                            throw new IllegalStateException(duplicateMessage);
+                        },
+                        TreeMap::new
+                ));
+    }
+
+    private Set<String> cardNamesOf(MagicDto magic) {
+        if (magic == null) {
+            return new TreeSet<>();
+        }
+
+        return magic.cardDtos().stream()
+                .map(CardDto::name)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     @Transactional(readOnly = true)
@@ -295,13 +346,23 @@ public class MagicService {
                         }
                 ));
 
+        int updated = 0;
+
         for (MagicDto magic : magics) {
             Magic targetMagic = existingMagicsByName.get(magic.name());
             if (targetMagic == null) {
                 targetMagic = new Magic();
                 targetMagic.setName(magic.name());
+                targetMagic.setCastType(magic.castType());
+                targetMagic.setAccessType(magic.accessType());
                 targetMagic = magicRepository.save(targetMagic);
                 created++;
+                changedNames.add(magic.name());
+            } else if (!Objects.equals(targetMagic.getCastType(), magic.castType())
+                    || !Objects.equals(targetMagic.getAccessType(), magic.accessType())) {
+                targetMagic.setCastType(magic.castType());
+                targetMagic.setAccessType(magic.accessType());
+                updated++;
                 changedNames.add(magic.name());
             } else {
                 unchanged++;
@@ -319,7 +380,7 @@ public class MagicService {
 
         return new SyncResult(
                 created,
-                0,
+                updated,
                 unchanged,
                 changedNames
         );

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,6 +26,17 @@ public class Magic {
 
     @Setter
     private String name;
+
+    // Both columns are NOT NULL in the database and cast_type additionally carries a CHECK.
+    // They are plain strings here for the same reason Adventure.accessType is: the lobby server
+    // reads them as lowercase text, which an @Enumerated(EnumType.STRING) mapping would not produce.
+    @Setter
+    @Column(name = "cast_type", length = 10, nullable = false)
+    private String castType;
+
+    @Setter
+    @Column(name = "access_type", length = 10, nullable = false)
+    private String accessType;
 
     @OneToMany(mappedBy = "magic")
     private List<MagicCard> magicCards = new ArrayList<>();

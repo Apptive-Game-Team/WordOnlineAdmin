@@ -12,6 +12,9 @@
     <div class="container py-4">
         <h1>Magic Deploy / Dev Comparison</h1>
 
+        <div th:if="${message}" class="alert alert-success mt-2" th:text="${message}"></div>
+        <div th:if="${error}" class="alert alert-danger mt-2" th:text="${error}"></div>
+
         <div class="mb-3">
             <button type="button" id="sync-magic-to-secondary" class="btn btn-outline-secondary"
                     th:disabled="${!secondaryDatabaseEnabled}">Deploy -> Dev</button>
@@ -24,12 +27,29 @@
             <div class="card-body">
                 <form th:action="@{/admin/magic/by-name/create}" method="post" class="form-inline">
                     <input type="text" class="form-control" name="name" placeholder="Magic name" required>
+                    <select class="form-control ml-2" name="castType" required>
+                        <option value="">Cast type</option>
+                        <option th:each="castType : ${castTypes}"
+                                th:value="${castType}" th:text="${castType}"></option>
+                    </select>
+                    <input type="text" class="form-control ml-2" name="accessType"
+                           list="magic-access-types" th:value="${defaultAccessType}"
+                           maxlength="10" required placeholder="Access type">
                     <select class="form-control ml-2" name="db">
                         <option value="primary">Deploy</option>
                         <option value="secondary" th:disabled="${!secondaryDatabaseEnabled}">Dev</option>
                     </select>
                     <button type="submit" class="btn btn-primary ml-2">Create</button>
                 </form>
+                <datalist id="magic-access-types">
+                    <option th:each="accessType : ${knownAccessTypes}" th:value="${accessType}"></option>
+                </datalist>
+                <small class="form-text text-muted">
+                    <strong>Cast type</strong>은 데이터베이스 CHECK가 허용하는 다섯 가지뿐이다. 비워 둘 수 없다.<br>
+                    <strong>Access type</strong>에는 CHECK가 없다. 지금까지 쓰인 값은
+                    <code th:text="${defaultAccessType}"></code> 하나뿐이고, 이 값인 마법은 모든 유저에게 기본 지급된다.
+                    다른 값은 "기본 지급하지 않는다"는 뜻일 뿐 어떤 코드도 해석하지 않는다. 최대 10자.
+                </small>
             </div>
         </div>
 
@@ -61,6 +81,12 @@
                 <label class="mb-0">
                     <input type="checkbox" class="magic-checkbox" th:value="${magic.name}">
                     <strong th:text="${magic.name}"></strong>
+                    <span class="badge badge-light ml-2"
+                          th:text="'cast: ' + (${magic.primaryPresent} ? ${magic.primaryCastType} : ${magic.secondaryCastType})"></span>
+                    <span class="badge badge-light"
+                          th:text="'access: ' + (${magic.primaryPresent} ? ${magic.primaryAccessType} : ${magic.secondaryAccessType})"></span>
+                    <span th:if="${magic.castTypeDiffers() or magic.accessTypeDiffers()}"
+                          class="badge badge-danger">Deploy / Dev 값이 다르다</span>
                 </label>
             </div>
             <div class="card-body">
@@ -69,11 +95,28 @@
                         <h4>Deploy</h4>
                         <div th:if="${!magic.primaryPresent}" class="text-muted">N/A</div>
                         <div th:if="${magic.primaryPresent}">
+                            <div class="mb-2">
+                                <span class="badge"
+                                      th:classappend="${magic.castTypeDiffers()} ? 'badge-danger' : 'badge-secondary'"
+                                      th:text="'cast: ' + ${magic.primaryCastType}"></span>
+                                <span class="badge"
+                                      th:classappend="${magic.accessTypeDiffers()} ? 'badge-danger' : 'badge-secondary'"
+                                      th:text="'access: ' + ${magic.primaryAccessType}"></span>
+                            </div>
                             <form th:action="@{/admin/magic/by-name/update}" method="post"
                                   class="form-inline mb-3">
                                 <input type="hidden" name="db" value="primary">
                                 <input type="hidden" name="currentName" th:value="${magic.name}">
                                 <input type="text" class="form-control" name="name" th:value="${magic.name}">
+                                <select class="form-control ml-2" name="castType" required>
+                                    <option value="">Cast type</option>
+                                    <option th:each="castType : ${castTypes}"
+                                            th:value="${castType}" th:text="${castType}"
+                                            th:selected="${castType == magic.primaryCastType}"></option>
+                                </select>
+                                <input type="text" class="form-control ml-2" name="accessType"
+                                       list="magic-access-types" th:value="${magic.primaryAccessType}"
+                                       maxlength="10" required>
                                 <button class="btn btn-info ml-2" type="submit">Update</button>
                             </form>
                             <form th:action="@{/admin/magic/by-name/delete}" method="post" class="mb-3">
@@ -97,11 +140,28 @@
                         <h4>Dev</h4>
                         <div th:if="${!magic.secondaryPresent}" class="text-muted">N/A</div>
                         <div th:if="${magic.secondaryPresent}">
+                            <div class="mb-2">
+                                <span class="badge"
+                                      th:classappend="${magic.castTypeDiffers()} ? 'badge-danger' : 'badge-secondary'"
+                                      th:text="'cast: ' + ${magic.secondaryCastType}"></span>
+                                <span class="badge"
+                                      th:classappend="${magic.accessTypeDiffers()} ? 'badge-danger' : 'badge-secondary'"
+                                      th:text="'access: ' + ${magic.secondaryAccessType}"></span>
+                            </div>
                             <form th:action="@{/admin/magic/by-name/update}" method="post"
                                   class="form-inline mb-3">
                                 <input type="hidden" name="db" value="secondary">
                                 <input type="hidden" name="currentName" th:value="${magic.name}">
                                 <input type="text" class="form-control" name="name" th:value="${magic.name}">
+                                <select class="form-control ml-2" name="castType" required>
+                                    <option value="">Cast type</option>
+                                    <option th:each="castType : ${castTypes}"
+                                            th:value="${castType}" th:text="${castType}"
+                                            th:selected="${castType == magic.secondaryCastType}"></option>
+                                </select>
+                                <input type="text" class="form-control ml-2" name="accessType"
+                                       list="magic-access-types" th:value="${magic.secondaryAccessType}"
+                                       maxlength="10" required>
                                 <button class="btn btn-info ml-2" type="submit">Update</button>
                             </form>
                             <form th:action="@{/admin/magic/by-name/delete}" method="post" class="mb-3">
