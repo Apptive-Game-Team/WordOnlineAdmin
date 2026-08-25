@@ -11,11 +11,13 @@
                 <form method="post" th:action="@{/admin/bot/{id}(id=${bot.userId})}">
                     <label>Apply to</label><select class="form-select" name="db"><option value="primary">Deploy</option><option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option></select>
                     <label>Name</label><input class="form-control" name="name" th:value="${data.name}" required>
-                    <label>Tier</label><select class="form-select" name="tier"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}" th:selected="${tier == data.tier}"></option></select>
+                    <label>Tier</label><select class="form-select" name="tier"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE','HOSPITALITY'} }" th:value="${tier}" th:text="${tier}" th:selected="${tier == data.tier}"></option></select>
+                    <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="hospitality-primary" name="hospitality" value="true" th:checked="${data.hospitality}"><input type="hidden" name="_hospitality"><label class="form-check-label" for="hospitality-primary">Hospitality — 튜토리얼 전용 상대. 랜덤 연습 풀에서 제외된다</label></div>
                     <div class="row"><div class="col"><label>MMR</label><input class="form-control" name="mmr" type="number" th:value="${data.mmr}"></div><div class="col"><label>Status</label><select class="form-select" name="status"><option th:each="s : ${ {'Online','OnMatching','OnPlaying'} }" th:value="${s}" th:text="${s}" th:selected="${s == data.status}"></option></select></div></div>
                     <label>Thinking ms</label><input class="form-control" name="thinkingTimeMs" type="number" min="0" th:value="${data.thinkingTimeMs}">
                     <label>Reaction frames</label><input class="form-control" name="reactionIntervalFrames" type="number" min="1" th:value="${data.reactionIntervalFrames}">
-                    <label>Counter aggression</label><input class="form-control" name="counterAggression" type="number" min="0" max="1" step="0.01" th:value="${data.counterAggression}">
+                    <label>Counter aggression</label><input class="form-control" name="counterAggression" type="number" min="-1" max="1" step="0.01" th:value="${data.counterAggression}">
+                    <div class="form-text">-1.0 ~ 1.0. 부호가 방향(음수 = 적 필드가 카운터하는 수를 고른다), 절댓값이 세기. 음수는 접대 봇 전용 — 일반 봇에 넣으면 그 봇이 자해한다.</div>
                     <input type="hidden" name="enabled" th:value="${data.enabled}"><input type="hidden" name="deckName" th:value="${data.selectedDeckName}">
                     <button class="btn btn-primary mt-2">Save</button>
                 </form>
@@ -37,11 +39,13 @@
                 <form method="post" th:action="@{/admin/bot/{id}(id=${bot.userId})}">
                     <label>Apply to</label><select class="form-select" name="db"><option value="secondary">Dev</option><option value="both">Deploy + Dev</option></select>
                     <label>Name</label><input class="form-control" name="name" th:value="${data.name}" required>
-                    <label>Tier</label><select class="form-select" name="tier"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}" th:selected="${tier == data.tier}"></option></select>
+                    <label>Tier</label><select class="form-select" name="tier"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE','HOSPITALITY'} }" th:value="${tier}" th:text="${tier}" th:selected="${tier == data.tier}"></option></select>
+                    <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="hospitality-secondary" name="hospitality" value="true" th:checked="${data.hospitality}"><input type="hidden" name="_hospitality"><label class="form-check-label" for="hospitality-secondary">Hospitality — 튜토리얼 전용 상대. 랜덤 연습 풀에서 제외된다</label></div>
                     <div class="row"><div class="col"><label>MMR</label><input class="form-control" name="mmr" type="number" th:value="${data.mmr}"></div><div class="col"><label>Status</label><select class="form-select" name="status"><option th:each="s : ${ {'Online','OnMatching','OnPlaying'} }" th:value="${s}" th:text="${s}" th:selected="${s == data.status}"></option></select></div></div>
                     <label>Thinking ms</label><input class="form-control" name="thinkingTimeMs" type="number" min="0" th:value="${data.thinkingTimeMs}">
                     <label>Reaction frames</label><input class="form-control" name="reactionIntervalFrames" type="number" min="1" th:value="${data.reactionIntervalFrames}">
-                    <label>Counter aggression</label><input class="form-control" name="counterAggression" type="number" min="0" max="1" step="0.01" th:value="${data.counterAggression}">
+                    <label>Counter aggression</label><input class="form-control" name="counterAggression" type="number" min="-1" max="1" step="0.01" th:value="${data.counterAggression}">
+                    <div class="form-text">-1.0 ~ 1.0. 부호가 방향(음수 = 적 필드가 카운터하는 수를 고른다), 절댓값이 세기. 음수는 접대 봇 전용 — 일반 봇에 넣으면 그 봇이 자해한다.</div>
                     <input type="hidden" name="enabled" th:value="${data.enabled}"><input type="hidden" name="deckName" th:value="${data.selectedDeckName}">
                     <button class="btn btn-primary mt-2">Save</button>
                 </form>

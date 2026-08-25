@@ -19,12 +19,12 @@
                     <td th:if="${comparison.primaryPresent}">
                         <strong th:text="${comparison.primary.name}"></strong>
                         <div th:text="|${comparison.primary.tier} · MMR ${comparison.primary.mmr}|"></div>
-                        <small th:text="|Deck: ${comparison.primary.selectedDeckName ?: 'None'} · Enabled: ${comparison.primary.enabled}|"></small>
+                        <small th:text="|Deck: ${comparison.primary.selectedDeckName ?: 'None'} · Enabled: ${comparison.primary.enabled}|"></small><span class="badge bg-info ms-1" th:if="${comparison.primary.hospitality}">Hospitality</span>
                     </td><td th:unless="${comparison.primaryPresent}" class="text-muted">N/A</td>
                     <td th:if="${comparison.secondaryPresent}">
                         <strong th:text="${comparison.secondary.name}"></strong>
                         <div th:text="|${comparison.secondary.tier} · MMR ${comparison.secondary.mmr}|"></div>
-                        <small th:text="|Deck: ${comparison.secondary.selectedDeckName ?: 'None'} · Enabled: ${comparison.secondary.enabled}|"></small>
+                        <small th:text="|Deck: ${comparison.secondary.selectedDeckName ?: 'None'} · Enabled: ${comparison.secondary.enabled}|"></small><span class="badge bg-info ms-1" th:if="${comparison.secondary.hospitality}">Hospitality</span>
                     </td><td th:unless="${comparison.secondaryPresent}" class="text-muted">N/A</td>
                 </tr></tbody>
             </table>
@@ -37,10 +37,12 @@
                     <option value="both" th:disabled="${!secondaryDatabaseEnabled}">Deploy + Dev</option>
                 </select>
                 <label class="form-label mt-2">Name</label><input class="form-control" th:field="*{name}" required maxlength="50">
-                <label class="form-label mt-2">Tier</label><select class="form-select" th:field="*{tier}"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE'} }" th:value="${tier}" th:text="${tier}"></option></select>
+                <label class="form-label mt-2">Tier</label><select class="form-select" th:field="*{tier}"><option th:each="tier : ${ {'INTRO','BEGINNER','INTERMEDIATE','ADVANCED','ELITE','HOSPITALITY'} }" th:value="${tier}" th:text="${tier}"></option></select>
+                <div class="form-check mt-2"><input class="form-check-input" type="checkbox" th:field="*{hospitality}"><label class="form-check-label" th:for="${#ids.prev('hospitality')}">Hospitality — 튜토리얼 전용 상대. 랜덤 연습 풀에서 제외된다</label></div>
                 <label class="form-label mt-2">Thinking ms</label><input class="form-control" type="number" min="0" th:field="*{thinkingTimeMs}">
                 <label class="form-label mt-2">Reaction frames</label><input class="form-control" type="number" min="1" th:field="*{reactionIntervalFrames}">
-                <label class="form-label mt-2">Counter aggression</label><input class="form-control" type="number" min="0" max="1" step="0.01" th:field="*{counterAggression}">
+                <label class="form-label mt-2">Counter aggression</label><input class="form-control" type="number" min="-1" max="1" step="0.01" th:field="*{counterAggression}">
+                <div class="form-text">-1.0 ~ 1.0. 부호가 방향(음수 = 적 필드가 카운터하는 수를 고른다), 절댓값이 세기. 음수는 접대 봇 전용 — 일반 봇에 넣으면 그 봇이 자해한다.</div>
                 <label class="form-label mt-2">MMR</label><input class="form-control" type="number" th:field="*{mmr}">
                 <label class="form-label mt-2">Initial deck name</label><input class="form-control" th:field="*{deckName}" required>
                 <button class="btn btn-primary mt-3" type="submit">Create</button>

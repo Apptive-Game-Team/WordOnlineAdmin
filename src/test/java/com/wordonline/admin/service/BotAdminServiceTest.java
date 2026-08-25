@@ -1,18 +1,23 @@
 package com.wordonline.admin.service;
 
+import com.wordonline.admin.dto.bot.BotAdminDto;
 import com.wordonline.admin.dto.bot.BotDeckForm;
 import com.wordonline.admin.dto.bot.BotForm;
 import com.wordonline.admin.repository.bot.BotAdminRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +72,49 @@ class BotAdminServiceTest {
         InOrder order = inOrder(repository);
         order.verify(repository).setEnabled(-3L, false);
         order.verify(repository).delete(-3L);
+    }
+
+    @Test
+    void acceptsTheHospitalityTierAndANegativeCounterAggression() {
+        BotAdminService service = new BotAdminService(repository);
+        BotForm form = validForm();
+        form.setTier("HOSPITALITY");
+        form.setCounterAggression(-1.0);
+        form.setHospitality(true);
+        when(repository.allocateUserId()).thenReturn(-7L);
+        when(repository.createDeck(-7L, "Bot Deck")).thenReturn(42L);
+
+        assertEquals(-7L, service.create(form));
+
+        verify(repository).createPersona(-7L, form);
+    }
+
+    @Test
+    void rejectsACounterAggressionOutsideTheWidenedRange() {
+        BotAdminService service = new BotAdminService(repository);
+        BotForm belowRange = validForm();
+        belowRange.setCounterAggression(-1.5);
+        BotForm aboveRange = validForm();
+        aboveRange.setCounterAggression(1.5);
+
+        assertThrows(IllegalArgumentException.class, () -> service.create(belowRange));
+        assertThrows(IllegalArgumentException.class, () -> service.create(aboveRange));
+    }
+
+    @Test
+    void upsertCarriesHospitalityIntoTheDeployUpdate() {
+        BotAdminService service = new BotAdminService(repository);
+        BotAdminDto source = new BotAdminDto(-5L, "Warm Welcome", "HOSPITALITY", 1200, 30, -1.0,
+                true, true, (short) 600, "Online", 9L, "Warm Welcome", List.of());
+        when(repository.findByUserId(-5L)).thenReturn(Optional.of(source));
+
+        service.upsert(source);
+
+        ArgumentCaptor<BotForm> form = ArgumentCaptor.forClass(BotForm.class);
+        verify(repository).update(eq(-5L), form.capture());
+        assertTrue(form.getValue().isHospitality());
+        assertEquals("HOSPITALITY", form.getValue().getTier());
+        assertEquals(-1.0, form.getValue().getCounterAggression());
     }
 
     private BotForm validForm() {

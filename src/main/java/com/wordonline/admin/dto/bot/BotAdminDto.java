@@ -10,6 +10,7 @@ public record BotAdminDto(
         int reactionIntervalFrames,
         double counterAggression,
         boolean enabled,
+        boolean hospitality,
         short mmr,
         String status,
         Long selectedDeckId,

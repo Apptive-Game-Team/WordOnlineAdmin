@@ -73,12 +73,25 @@ class BotDualDatabaseServiceTest {
         assertEquals(List.of(-1L, -2L), result.userIds());
     }
 
+    @Test
+    void syncToPrimaryPassesTheHospitalityBotThroughUnchanged() {
+        BotAdminDto hospitalityBot = new BotAdminDto(-5L, "Warm Welcome", "HOSPITALITY", 1200, 30, -1.0,
+                true, true, (short) 600, "Online", 9L, "Warm Welcome", List.of());
+        when(secondaryProvider.getIfAvailable()).thenReturn(secondary);
+        when(secondary.findAll()).thenReturn(List.of(hospitalityBot));
+
+        var result = service().syncToPrimary();
+
+        verify(primary).upsert(hospitalityBot);
+        assertEquals(List.of(-5L), result.userIds());
+    }
+
     private BotDualDatabaseService service() {
         return new BotDualDatabaseService(primary, secondaryProvider, cardRepository);
     }
 
     private BotAdminDto bot(long id, String name) {
-        return new BotAdminDto(id, name, "BEGINNER", 250, 8, 0.25, true,
+        return new BotAdminDto(id, name, "BEGINNER", 250, 8, 0.25, true, false,
                 (short) 1000, "Online", 1L, "Deck", List.of());
     }
 }
