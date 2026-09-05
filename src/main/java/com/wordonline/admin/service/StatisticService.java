@@ -104,11 +104,6 @@ public class StatisticService {
                 .forEach(statisticGame -> {
                     statisticGame.getStatisticGameCards()
                             .stream()
-                            .filter(statisticGameCard ->
-                                    Objects.equals(
-                                            statisticGameCard.getUserId(),
-                                            statisticGame.getWinUserId()
-                                    ))
                             .map(StatisticGameCard::getCard)
                             .forEach(card -> {
                                 int count = cardCounts.getOrDefault(card, 0);
