@@ -231,4 +231,12 @@ class SpreadSheetServiceTest {
         verify(parameterService).upsertParameterValue("archer", "hp", 100.0, false);
         verify(parameterService).upsertParameterValue("archer", "hp", 90.0, true);
     }
+
+    @Test
+    void batchUpdateParameters_ignoresNullUpdates() {
+        assertDoesNotThrow(() -> spreadSheetService.batchUpdateParameters(null, false, false));
+        assertDoesNotThrow(() -> spreadSheetService.batchUpdateParameters(null, true, false));
+
+        verifyNoInteractions(parameterService, secondaryParameterSyncService);
+    }
 }
