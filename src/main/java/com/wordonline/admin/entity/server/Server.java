@@ -65,7 +65,8 @@ public class Server {
     /**
      * Base URL to use for server-to-server calls: {@link #internalBaseUrl} when this server
      * reported one, otherwise the public {@link #getUrl()}. Chosen once here from whichever
-     * value is present at call time; callers must not retry the other address on failure.
+     * value is present; a caller whose internal address turns out to be unreachable is
+     * responsible for falling back to {@link #getUrl()} itself (see {@code AccountServerClient}).
      */
     public String getInterServerUrl() {
         return internalBaseUrl != null ? internalBaseUrl : getUrl();
