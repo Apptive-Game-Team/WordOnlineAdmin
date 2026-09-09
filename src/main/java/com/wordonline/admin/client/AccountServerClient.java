@@ -26,9 +26,10 @@ public class AccountServerClient {
                 .orElseThrow(() -> new IllegalStateException(
                         "Account server not found in database. Please configure an ACTIVE ACCOUNT server."
                 ));
-        restClient = builder.baseUrl(accountServer.getUrl())
+        String url = accountServer.getInterServerUrl();
+        restClient = builder.baseUrl(url)
                 .build();
-        log.info("Account server client initialized with URL: {}", accountServer.getUrl());
+        log.info("Account server client initialized with URL: {}", url);
     }
 
     public String login(String username, String password) {
